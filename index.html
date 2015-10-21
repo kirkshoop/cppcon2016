@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Adding Async Algorithms to std</title>
+    <meta charset="utf-8">
+    <style>
+      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+
+      body { font-family: 'Droid Serif'; }
+      h1, h2, h3 {
+        font-family: 'Yanone Kaffeesatz';
+        font-weight: normal;
+      }
+      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+class: center, middle
+
+# Adding Async Algorithms to std
+
+## Kirk Shoop
+#### [github](http://) [twitter](http://)
+---
+
+name: whyalgo
+
+#why alogrithms?
+---
+
+template: whyalgo
+## documented
+
+the behavior, complexity and tradeoffs selected are
+documented and consistent across implementations
+
+---
+
+template: whyalgo
+## stable
+
+the implementation is well specified and tested
+
+---
+
+template: whyalgo
+## optimized
+
+good tradeoffs have been selected
+
+the implementation is minimal and efficient
+
+the implementation was written well and tested
+well by a few for the benefit of many
+---
+
+name: algo
+
+#alogrithms
+---
+
+template: algo
+
+##filter (copy_if)
+---
+
+template: algo
+
+##transform (map)
+---
+
+template: algo
+
+##merge
+---
+
+template: algo
+
+##amb
+---
+template: algo
+
+##withLatestFrom
+---
+template: algo
+
+##scan
+---
+template: algo
+
+##switch
+---
+template: algo
+
+##window
+---
+
+name: shapes
+
+# shapes
+---
+
+template: shapes
+
+##what is the shape of an implementation of an algorithm?
+
+---
+
+template: shapes
+
+##what is the shape of the usage of an algorithm?
+
+---
+
+name: transducer
+
+# transducer
+---
+
+template: transducer
+
+Rich Hickey
+
+---
+
+name: pullfrp
+
+# pull frp
+---
+
+template: pullfrp
+
+David Sankel
+
+---
+
+name: rx
+
+# Reactive Extensions
+---
+
+template: rx
+
+Kirk Shoop
+
+---
+
+name: await
+
+# async_generator and await
+---
+
+template: await
+
+Kirk Shoop
+
+---
+
+# filter
+
+```cpp
+  auto filterer = [](auto pred){
+    return `[=](auto step)` {
+      return `stateless`(
+        [=](auto s, auto v){
+          if (pred(v)) {
+            return step(s, v);
+          }
+          return s;
+        },
+        [=](auto s){
+          return step(s);
+        });
+    };
+  };
+```
+
+```cpp
+  template<typename T, typename P>
+  async_generator<T> filter(async_generator<T> s, P pred) {
+    for __await(auto&& v : s) {
+      if (pred(v)) {
+        __yield_value v;
+      }
+    }
+  }
+```
+
+---
+
+# filter
+```cpp
+auto filter = [](auto pred) {
+  return [=](auto subscriber) {
+    return make_subscriber(
+      [=](auto v) {
+        if (pred(v)) {
+          subscriber.on_next(v);
+        }
+      },
+      [=](std::exception_ptr ep) {
+        subscriber.on_error(ep);
+      },
+      [=]() {
+        subscriber.on_completed();
+      }
+    );
+  }
+};
+```
+    </textarea>
+    <script src="https://gnab.github.io/remark/downloads/remark-latest.min.js">
+    </script>
+    <script>
+      var slideshow = remark.create({
+        ratio: "16:9",
+        highlightLanguage: "cpp",
+        highlightStyle: "tomorrow",
+        highlightSpans: true
+      });
+    </script>
+  </body>
+</html>
