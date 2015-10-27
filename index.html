@@ -14,19 +14,29 @@
         font-weight: normal;
       }
       .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+
+      div.footer {
+        position: absolute;
+        bottom: 50px;
+        right: 20px;
+        height: 20px;
+        width: 100%;
+      }
     </style>
   </head>
   <body>
     <textarea id="source">
 
+layout: true
+<div class="footer"><span>.right[&copy; 2015 Kirk Shoop ([github](http://github.com/kirkshoop) [twitter](http://twitter.com/kirkshoop))]</span></div>
+
+---
+
 class: center, middle
 
 # Adding Async Algorithms to std
 
-## Kirk Shoop
-#### [github](http://) [twitter](http://)
 ---
-
 name: whyalgo
 
 #why alogrithms?
@@ -56,8 +66,42 @@ the implementation is minimal and efficient
 
 the implementation was written well and tested
 well by a few for the benefit of many
+
+---
+name: represent
+
+#representing a sequence
+
+---
+template: represent
+
+##time vs space
+
+---
+template: represent
+
+##push vs pull
+
+####pull
+- auto v = *it;
+- auto v = step(time);
+
+####push
+- o.subscribe([](auto v){});
+
 ---
 
+template: represent
+
+##lazy vs greedy
+
+---
+
+template: represent
+
+##l
+
+---
 name: algo
 
 #alogrithms
@@ -123,19 +167,70 @@ name: transducer
 
 template: transducer
 
-Rich Hickey
+####origin
+Rich Hickey developed for Clojure. Very quickly other languages had implementations including JavaScript and C++.
+
+####algorithmic interface
+
+iterator and range provide interfaces for data traversal.
+
+transducers use the reduce (`std::accumulate`) function `auto step(State, Value) -> State` as the interface that all algorithms implement.
 
 ---
 
-name: pullfrp
+template: transducer
 
-# pull frp
+####example
+```cpp
+auto xf = comp(
+    filter([](int x) { return x > 0; }),
+    map([](int x) { return std::to_string(x); }));
+
+auto data = std::vector<int>{ ... };
+auto xformed = sequence(xf, data);
+```
 ---
 
-template: pullfrp
+template: transducer
 
-David Sankel
+####c++
+- Juan Pedro Bolívar Puente @ cppcon 'atria::xform' [YouTube](https://www.youtube.com/watch?v=vohGJjGxtJQ), [github](https://github.com/Ableton/atria)
+- my experiments [github](https://github.com/kirkshoop/transducer)
 
+####Clojure
+- Rich Hickey @ StrangeLoop [YouTube](https://www.youtube.com/watch?v=6mTbuzafcII)
+- Rich Hickey [Blog](http://blog.cognitect.com/blog/2014/8/6/transducers-are-coming)
+
+####js
+- James Long [Blog](http://jlongster.com/Transducers.js--A-JavaScript-Library-for-Transformation-of-Data)
+
+---
+
+name: sfrp
+
+# sfrp
+---
+
+template: sfrp
+
+David Sankel @ CppNow [YouTube](https://www.youtube.com/watch?v=tyaYLGQSr4g),[github](https://github.com/camio/sbase)
+---
+
+template: sfrp
+
+####example
+
+```cpp
+template <typename R, typename Args...>
+Behavior<R>
+map(function<R(Args...)> func,
+Behavior<Args>... behaviors);
+
+Behavior<Drawing> circleFollowsMouse(
+Behavior<Point2D> mousePos) {
+return map(circleAt, mousePos);
+}
+```
 ---
 
 name: rx
