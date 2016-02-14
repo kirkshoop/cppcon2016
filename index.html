@@ -105,7 +105,7 @@ output: rxlinesfrombytesoutput
 __code__
 
 ```cpp
-byteVector$ |
+asyncReadBytes() |
   tap(`printVectorOfBytes`) |
   concat_map(vectorOfStringsFromVectorOfBytes) |
   group_by(groupFromString) |

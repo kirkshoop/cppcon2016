@@ -1,5 +1,5 @@
 
-// em++ -std=c++14 --memory-init-file 0 -s EXPORTED_FUNCTIONS="['_rxlinesfrombytes']" -O2 examples.cpp -o examples.js
+// em++ -std=c++14 --memory-init-file 0 -s EXPORTED_FUNCTIONS="['_rxlinesfrombytes']" -s DEMANGLE_SUPPORT=1 -s NO_EXIT_RUNTIME=1 -O2 examples.cpp -o examples.js
 
 #include "rxcpp/rx.hpp"
 using namespace rxcpp;
@@ -16,21 +16,36 @@ extern"C" {
     void rxlinesfrombytes(int, int, int);
 }
 
-void rxlinesfrombytes(int stepms, int count, int windowSize)
+struct UniformRandomInt
 {
     random_device rd;   // non-deterministic generator
-    mt19937 gen(rd());
-    uniform_int_distribution<> dist(4, 18);
-    
-//    auto s = synchronize_new_thread();
+    mt19937 gen;
+    uniform_int_distribution<> dist;
+
+    UniformRandomInt(int start, int stop)
+        : gen(rd())
+        , dist(start, stop)
+    {
+    }
+    int operator()() {
+        return dist(gen);
+    }
+};
+
+observable<vector<uint8_t>> readAsyncBytes(int stepms, int count, int windowSize)
+{
+    auto lengthProducer = make_shared<UniformRandomInt>(4, 18);
+
     auto s = identity_current_thread();
+    //auto s = synchronize_new_thread();
 
     // produce byte stream that contains lines of text
     auto bytes = interval(s.now(), chrono::milliseconds(stepms), s).
         take(count).
-        map([&](int i){ 
+        map([lengthProducer](int i){ 
+            auto& getlength = *lengthProducer;
             return from((uint8_t)('A' + --i)).
-                repeat(dist(gen)).
+                repeat(getlength()).
                 concat(from((uint8_t)'\r'));
         }).
         merge().
@@ -46,14 +61,19 @@ void rxlinesfrombytes(int stepms, int count, int windowSize)
                     [](vector<uint8_t>& v){return move(v);}).
                 as_dynamic(); 
         }).
-        merge().
+        merge();
+
+    return bytes;
+}
+
+void rxlinesfrombytes(int stepms, int count, int windowSize)
+{
+    // create strings split on \r
+    auto strings = readAsyncBytes(stepms, count, windowSize).
         tap([](vector<uint8_t>& v){
             copy(v.begin(), v.end(), ostream_iterator<long>(cout, " "));
             cout << endl; 
-        });
-
-    // create strings split on \r
-    auto strings = bytes.
+        }).
         map([](vector<uint8_t> v){
             string s(v.begin(), v.end());
             regex delim(R"/(\r)/");
@@ -86,5 +106,15 @@ void rxlinesfrombytes(int stepms, int count, int windowSize)
 
     // print result
     lines.
-        subscribe(println(cout));
+        subscribe(
+            println(cout), 
+            [](exception_ptr ep){cout << what(ep) << endl;});
+}
+
+int main() {
+    cout << ">rxlinesfrombytes" << endl;
+    rxlinesfrombytes(10, 4, 11);
+    cout << "~rxlinesfrombytes" << endl;
+    
+    return 0;
 }
