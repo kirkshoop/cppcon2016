@@ -1,8 +1,10 @@
 
-// em++ -std=c++14 --memory-init-file 0 -s EXPORTED_FUNCTIONS="['_rxlinesfrombytes']" -s DEMANGLE_SUPPORT=1 -s NO_EXIT_RUNTIME=1 -O2 examples.cpp -o examples.js
+// em++ -std=c++14 --memory-init-file 0 -s EXPORTED_FUNCTIONS="['_main', '_reset', '_rxlinesfrombytes']" -s DEMANGLE_SUPPORT=1 -O2 examples.cpp -o examples.js
+#include "emscripten.h"
 
 #include "rxcpp/rx.hpp"
 using namespace rxcpp;
+using namespace rxcpp::schedulers;
 using namespace rxcpp::sources;
 using namespace rxcpp::util;
 
@@ -13,8 +15,40 @@ using namespace std;
 using namespace std::literals;
 
 extern"C" {
+    void reset();
     void rxlinesfrombytes(int, int, int);
 }
+
+//
+// setup up a run_loop scheduler and register a tick 
+// function to dispatch from requestAnimationFrame
+//
+
+run_loop rl;
+
+auto jsthread = observe_on_run_loop(rl);
+
+void tick(){
+    if (!rl.empty() && rl.peek().when < rl.now()) {
+        rl.dispatch();
+    }
+}
+
+int main() {
+    emscripten_set_main_loop(tick, -1, false);
+    return 0;
+}
+
+composite_subscription lifetime;
+
+void reset() {
+    lifetime.unsubscribe();
+    lifetime = composite_subscription();
+}
+
+//
+// produce byte vectors of random length strings ending in \r
+//
 
 struct UniformRandomInt
 {
@@ -35,16 +69,16 @@ struct UniformRandomInt
 observable<vector<uint8_t>> readAsyncBytes(int stepms, int count, int windowSize)
 {
     auto lengthProducer = make_shared<UniformRandomInt>(4, 18);
+    
+    auto step = chrono::milliseconds(stepms);
 
-    auto s = identity_current_thread();
-    //auto s = synchronize_new_thread();
+    auto s = jsthread;
 
     // produce byte stream that contains lines of text
-    auto bytes = interval(s.now(), chrono::milliseconds(stepms), s).
-        take(count).
+    auto bytes = range(0, count).
         map([lengthProducer](int i){ 
             auto& getlength = *lengthProducer;
-            return from((uint8_t)('A' + --i)).
+            return from((uint8_t)('A' + i)).
                 repeat(getlength()).
                 concat(from((uint8_t)'\r'));
         }).
@@ -63,7 +97,8 @@ observable<vector<uint8_t>> readAsyncBytes(int stepms, int count, int windowSize
         }).
         merge();
 
-    return bytes;
+    return interval(s.now() + step, step, s).
+        zip([](int, vector<uint8_t> v){return v;}, bytes);
 }
 
 void rxlinesfrombytes(int stepms, int count, int windowSize)
@@ -107,14 +142,7 @@ void rxlinesfrombytes(int stepms, int count, int windowSize)
     // print result
     lines.
         subscribe(
+            lifetime,
             println(cout), 
             [](exception_ptr ep){cout << what(ep) << endl;});
-}
-
-int main() {
-    cout << ">rxlinesfrombytes" << endl;
-    rxlinesfrombytes(10, 4, 11);
-    cout << "~rxlinesfrombytes" << endl;
-    
-    return 0;
 }

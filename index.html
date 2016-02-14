@@ -20,9 +20,11 @@
         width: 100%;
         }
 
-        .emscripten-output {
+        div.emscripten-output {
             font-family: 'Droid Sans Mono';
-            font-size: 18pt;
+            font-size: 14pt;
+            border: 2px solid steelblue;
+            padding: 5px;
         }
 
         table {
@@ -48,21 +50,21 @@
         .split-70 .column:last-of-type {width: 30%}
 
         blockquote {
-        background: lightgray ;
-        border-left: 10px solid deepskyblue;
-        margin: 1.5em 0px;
-        padding: 0.5em 10px;
-        quotes: "\201C""\201D""\2018""\2019";
+            background: lightgray ;
+            border-left: 10px solid deepskyblue;
+            margin: 1.5em 0px;
+            padding: 0.5em 10px;
+            quotes: "\201C""\201D""\2018""\2019";
         }
         blockquote:before {
-        color: #ccc;
-        font-size: 4em;
-        line-height: 0.1em;
-        margin-right: 0.25em;
-        vertical-align: -0.4em;
+            color: #ccc;
+            font-size: 4em;
+            line-height: 0.1em;
+            margin-right: 0.25em;
+            vertical-align: -0.4em;
         }
         blockquote p {
-        display: inline;
+            display: inline;
         }
     </style>
   </head>
@@ -95,14 +97,14 @@ have you watched __eric neibler's__ _calendar printer_ talk using RangeV3?
 ---
 
 function: rxlinesfrombytes
-arguments: 10, 4, 11
+arguments: 1000, 4, 11
 output: rxlinesfrombytesoutput
 
 # lines from bytes
 .split-60[
 .column[
 
-__code__
+__code__ (rxcpp)
 
 ```cpp
 asyncReadBytes() |
@@ -117,16 +119,18 @@ asyncReadBytes() |
 
 .column[
 
-__output__
+__output__ (emscripten)
 
-<div class=".emscripten-output" id="rxlinesfrombytesoutput"/>
+.emscripten-output[
+ <div id="rxlinesfrombytesoutput"/>
+]
 
 ]
 
 ]
 
 ???
-as each set of bytes arrives its is split on `\r` and then appended into the final lines
+bytes arrive once a second. as each set of bytes arrives, it is split on `\r`, grouped into lines and then each group is appended into a line
 
 > * highlighted lines __print__ the _bytes_ as they arrive and the _lines_ as they are emited
 > * __$__ is used to indicate a source of values over time. Popularized by @stalz
@@ -136,44 +140,19 @@ name: whyalgo
 
 #why alogrithms?
 
+* ##documented
+* ##stable
+* ##optimized
+* ##descriptive
 ???
-have you seen __sean parent's__ _avoid raw loops_ talk?
-
-have you seen __eric neibler's__ _calendar printer_ talk using RangeV3?
---
-
-* __documented__
-???
-____
-the __behavior__, __complexity__ and __tradeoffs__ selected are
+* the __behavior__, __complexity__ and __tradeoffs__ selected are
 documented and consistent across implementations
---
+* the implementation is __well specified__, __tested__ and __actively maintained__
+* the implementation is __minimal__ and __efficient__
+* the usage __describes__ the steps clearly (transform and remove_if vs for loop and an if statement)
 
-* __stable__
-???
-____
-the implementation is __well specified__, __tested__ and __actively maintained__
---
-
-* __optimized__
-???
-____
-the implementation is __minimal__ and __efficient__
---
-
-* __descriptive__
-???
-____
-the usage __describes__ the steps clearly (transform and remove_if vs for loop and an if statement)
+> after a while looking at a for-loop will become an excercise in finding the set of algorithms that it re-implements
 ---
-
-name: sequences
-
-#sequences
-
----
-
-template: sequences
 
 ##what do algorithms operate on?
 
@@ -181,69 +160,108 @@ template: sequences
 
 algorithms deal with sequences of values
 
---
-__sequences of values__
+---
+
+name: sequences
+
+#sequences
 
 ???
---
-#### in space
-* vector of screen coordinates
-* generator of screen coordinates
+What ways can a sequence be delivered?
+---
+template: sequences
+
+.split-50[
+.column[
+
+## in space
+* ## vector of mouse positions
+* ## generator of mouse positions
+
+]
+
+.column[
+
+`using mouseMoves = vector<tuple<int,int>>;`
+
+`$$
+\begin{array}{|c|c|c|c|c|}
+\hline
+0,0 & 100,100 & 200,200 & 300,300 & 400,400\\
+\hline
+\end{array}
+$$`
+
+```cpp
+auto mouseMoves(int start, int end) 
+    -> std::generator<tuple<int, int>> {
+    for(;start != end; ++start){
+        auto position = start * 100;
+        co_yield make_tuple(position, position);
+    }
+}
+```
+
+]
+
+]
 
 ???
 
 values distributed in space
 
---
+---
+template: sequences
 
-#### in time
-* mouse moves as screen coordinates
-* network packets
+.split-50[
+.column[
+
+## in time
+* ##mouse move events
+* ##network packets
+
+]
+
+.column[
+
+```cpp
+auto window::mouseMoves()
+    -> async_generator<tuple<int, int>> {
+    for co_await(auto event : events()) {
+        if (event.id == MOUSEMOVE) {
+            co_yield mousePositionFrom(event);
+        }
+    }
+}
+
+auto socket::bytes()
+    -> async_generator<vector<byte>> {
+    vector<byte> out;
+    while (out = co_await read(. . .)) {
+        co_yield out;
+    }
+}
+```
+
+]
+
+]
+
 ???
 
 values distributed in time
 
 ---
-template: sequences
-
-##how to represent a sequence in documentation or slides?
-
-__values distributed__ |     __completed__  | __failed__
----------------------: |     ------------:  | ---------: 
-            _in space_ |           `12467:` |         `1246#`
-            _in time_  | `--1-2-4---6--7-:` | `--1-2-4---6-#`
-
-> notation derived from the RxJS project on [github](https://github.com/ReactiveX/RxJS/blob/master/doc/writing-marble-tests.md)
-
-???
-
-vector and generator distribute values in space
-
-async sources distribute values in time
-
-* "-" time: a 'unit' of time
-* ":" complete: The successful completion of a sequence
-* "#" error: An error terminating the iteration of a sequence
-* "1-9" number: represent that value in the sequence
-
----
-name: shape
-
-#shape
-
-???
-
----
 
 template: shape
 
-##what are the options for __surface__ and __behavior__?
+#what are the design options?
 
 ???
 the shape is largly derived from a set choices about the __surface__ and __behavior__
 --
 
-* __abstract__ the sequence or algorithm
+* ##__abstract__ the sequence or algorithm?
 ???
 ____
 __abstract the sequence or the algorithm?__
@@ -251,7 +269,7 @@ __abstract the sequence or the algorithm?__
 __sequence__ iterators, Range | __algorithm__ accumulator step function 
 --
 
-* __flow__ control is push or pull
+* ##__flow__ control using push or pull?
 ???
 ____
 __what direction does the sequence flow?__
@@ -259,7 +277,7 @@ __what direction does the sequence flow?__
 __pull__ iterators, Enumerator | __push__ Callback, Observer
 --
 
-* __cancel__ the sequence
+* ##__cancel__ by ommission or trigger?
 ???
 ____
 __how are sequences interrupted?__
@@ -267,7 +285,7 @@ __how are sequences interrupted?__
 __omission__ stop pulling | __trigger__ race between setting and checking a flag
 --
 
-* __chain__ algorithms together
+* ##__chain__ algorithms using operator| or function nesting?
 ???
 ____
 __how are algorithms chained?__
@@ -282,17 +300,14 @@ name: rangev3
 __abstract__ | __flow__ | __cancel__ | __chain__
 :----------- | :------- | :--------- | :--------
 sequence     | pull     | omission   | operator
-???
----
 
+???
+adds operator chaining to the stl
+
+---
 template: rangev3
 
-The RangeV3 library has two sequence abstractions. 
-???
---
-
-
-One abstraction is the Range.
+##the algorithms in RangeV3 use sequences that match the range concept
 
 ```cpp
 template<class Iterator, class EndIterator = Iterator>
@@ -301,27 +316,18 @@ struct range {
     EndIterator end();
 };
 ```
+
 ???
---
+EndIterator may be a different type than Iterator to facilitate sentinel EndIterators
 
-
-The other abstraction is a View.
-
-```cpp
-template<class T>
-struct view {
-    T get();
-    void next();
-    bool done();
-};
-```
-???
 ---
 template: rangev3
 
+##using operators to chain algorithms together
+
 ```cpp
 auto fiveOddInts = view::ints(0) | //generates next int when asked 
-  view::remove_if([](int n) { return n % 2 == 0; }) | // discard even
+  view::remove_if([](int n) { return n % 2 == 0; }) | // discard even ints
   view::take(5); // stop after 5
   
 for(auto i : fiveOddInts) {. . .}
@@ -336,26 +342,22 @@ name: transducers
 __abstract__ | __flow__ | __cancel__ | __chain__
 :----------- | :------- | :--------- | :--------
 algorithm    | push     | omission   | function
+
 ???
 ---
 
 template: transducers
 
-Transducers abstract the algorithm by using the accumulate algorithm step function to implement all the algorithms.
+##Transducers abstract the algorithm by using the accumulate algorithm step function to implement all the algorithms.
 
 ```cpp
 struct transducer {
     template<class NextStep>
     struct step_impl {
-
-        // implementation goes here
-        // may or may not call nextstep
-        // auto nextstate = nextstep(state, t);
         template<class State, class T>
         auto operator()(State state, T t);
     };
 
-    // used to chain this step to the next step
     template<class NextStep>
     auto operator()(NextStep nextstep) {
         return step_impl<NextStep>(nextstep);
@@ -364,6 +366,8 @@ struct transducer {
 ```
 
 ???
+`step_impl::operator()` is where a call to nextstep would pass the value along.
+
 ---
 template: transducers
 
@@ -794,6 +798,29 @@ auto filter = [](auto pred) {
   }
 };
 ```
+---
+template: sequences
+
+##how to represent a sequence in documentation or slides?
+
+__values distributed__ |     __completed__  | __failed__
+---------------------: |     ------------:  | ---------: 
+            _in space_ |           `12467:` |         `1246#`
+            _in time_  | `--1-2-4---6--7-:` | `--1-2-4---6-#`
+
+> notation derived from the RxJS project on [github](https://github.com/ReactiveX/RxJS/blob/master/doc/writing-marble-tests.md)
+
+???
+
+vector and generator distribute values in space
+
+async sources distribute values in time
+
+* "-" time: a 'unit' of time
+* ":" complete: The successful completion of a sequence
+* "#" error: An error terminating the iteration of a sequence
+* "1-9" number: represent that value in the sequence
+
     </textarea>
     <!--script src="https://gnab.github.io/remark/downloads/remark-latest.min.js" type="text/javascript" >
     </script-->
@@ -804,7 +831,7 @@ auto filter = [](auto pred) {
     <script src="./element.js" type="text/javascript" >
     </script>
     <script>
-        var Module = {};
+        var Module = {noInitialRun: false};
         var printTo = function(output) {
             return function(text){
                 if (output) {
@@ -819,7 +846,9 @@ auto filter = [](auto pred) {
     </script>
     <script src="./examples.js" type="text/javascript" >
     </script>
-    <script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&delayStartupUntil=configured" type="text/javascript" >
+    <!--script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&delayStartupUntil=configured" type="text/javascript" >
+    </script-->
+    <script src="./MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML&delayStartupUntil=configured" type="text/javascript" >
     </script>
     <script>
         var slideshow = remark.create({
@@ -829,6 +858,7 @@ auto filter = [](auto pred) {
             highlightSpans: true
         });
         MathJax.Hub.Config({
+            displayAlign: "left",
             tex2jax: {
                 skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
                 inlineMath: [['$','$'], ['\\(','\\)']]
@@ -836,8 +866,25 @@ auto filter = [](auto pred) {
         });
         MathJax.Hub.Configured();
         // mathjax examples 
+
         // `$$ x = (-b +- sqrt(b^2-4ac))/(2a) . $$`
+
         // `$$ \int_{V_1}^{V_2}mVdV =  \int_{s_1}^{s_2} F_s ds $$`
+
+        // `$$
+        // A \xrightarrow{send} B
+        // $$`
+
+        // `$$
+        // \newcommand{\ra}[1]{\!\!\!\!\!\!\!\!\!\!\!\!\xrightarrow{\quad#1\quad}\!\!\!\!\!\!\!\!}
+        // \newcommand{\da}[1]{\left\downarrow{\scriptstyle#1}\vphantom{\displaystyle\int_0^1}\right.}
+        // %
+        // \begin{array}{llllllllllll}
+        // 0 & \ra{f_1} & A & \ra{f_2} & B & \ra{f_3} & C & \ra{f_4} & D & \ra{f_5} & 0 \\
+        // \da{g_1} & & \da{g_2} & & \da{g_3} & & \da{g_4} & & \da{g_5} & & \da{g_6} \\
+        // 0 & \ra{h_1} & 0 & \ra{h_2} & E & \ra{h_3} & F & \ra{h_4} & 0 & \ra{h_5} & 0 \\
+        // \end{array}
+        // $$`
 
         var calls = {
             "rxlinesfrombytes": Module.cwrap(
@@ -853,6 +900,9 @@ auto filter = [](auto pred) {
                 Module["print"] = printTo(output);
                 calls[slide.properties.function].apply(Module, slide.properties.arguments.split(','));
             }
+        });
+        slideshow.on("hideSlide", function(slide) {
+            Module.ccall('reset', null, [], []);
         });
     </script>
   </body>
