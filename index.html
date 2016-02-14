@@ -3,70 +3,518 @@
   <head>
     <title>Adding Async Algorithms to std</title>
     <meta charset="utf-8">
+    <link rel="stylesheet" href="./fonts.css"/>
     <style>
-      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
-      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
-      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
-
-      body { font-family: 'Droid Serif'; }
-      h1, h2, h3 {
+        body { font-family: 'Droid Serif'; }
+        h1, h2, h3 {
         font-family: 'Yanone Kaffeesatz';
         font-weight: normal;
-      }
-      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+        }
+        .remark-code, .remark-inline-code { font-family: 'Droid Sans Mono'; }
 
-      div.footer {
+        div.footer {
         position: absolute;
         bottom: 50px;
         right: 20px;
         height: 20px;
         width: 100%;
-      }
+        }
+
+        .emscripten-output {
+            font-family: 'Droid Sans Mono';
+            font-size: 18pt;
+        }
+
+        table {
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 5px;
+            border: 1px solid steelblue;
+        }
+
+        .column:first-of-type {float:left}
+        .column:last-of-type {float:right}
+
+        .split-30 .column:first-of-type {width: 30%}
+        .split-30 .column:last-of-type {width: 70%}
+        .split-40 .column:first-of-type {width: 40%}
+        .split-40 .column:last-of-type {width: 60%}
+        .split-50 .column:first-of-type {width: 50%}
+        .split-50 .column:last-of-type {width: 50%}
+        .split-60 .column:first-of-type {width: 60%}
+        .split-60 .column:last-of-type {width: 40%}
+        .split-70 .column:first-of-type {width: 70%}
+        .split-70 .column:last-of-type {width: 30%}
+
+        blockquote {
+        background: lightgray ;
+        border-left: 10px solid deepskyblue;
+        margin: 1.5em 0px;
+        padding: 0.5em 10px;
+        quotes: "\201C""\201D""\2018""\2019";
+        }
+        blockquote:before {
+        color: #ccc;
+        font-size: 4em;
+        line-height: 0.1em;
+        margin-right: 0.25em;
+        vertical-align: -0.4em;
+        }
+        blockquote p {
+        display: inline;
+        }
     </style>
   </head>
   <body>
     <textarea id="source">
 
 layout: true
-<div class="footer"><span>.right[&copy; 2015 Kirk Shoop ([github](http://github.com/kirkshoop) [twitter](http://twitter.com/kirkshoop))]</span></div>
+<div class="footer"><span>.right[&copy; 2016 Kirk Shoop ([github](http://github.com/kirkshoop) [twitter](http://twitter.com/kirkshoop))]</span></div>
 
 ---
 
-class: center, middle
+class: middle
+
+.center[
 
 # Adding Async Algorithms to std
 
+]
+
+<rx-marbles key="debounce"/>
+
+???
+
+> structure as interview (slide per question) with answer prompts in the notes
+
+have you watched __sean parent's__ _avoid raw loops_ talk?
+
+have you watched __eric neibler's__ _calendar printer_ talk using RangeV3?
+
+---
+
+function: rxlinesfrombytes
+arguments: 10, 4, 11
+output: rxlinesfrombytesoutput
+
+# lines from bytes
+.split-60[
+.column[
+
+__code__
+
+```cpp
+byteVector$ |
+  tap(`printVectorOfBytes`) |
+  concat_map(vectorOfStringsFromVectorOfBytes) |
+  group_by(groupFromString) |
+  flat_map(appendGroupStrings) |
+  subscribe(`println(cout)`);
+```
+
+]
+
+.column[
+
+__output__
+
+<div class=".emscripten-output" id="rxlinesfrombytesoutput"/>
+
+]
+
+]
+
+???
+as each set of bytes arrives its is split on `\r` and then appended into the final lines
+
+> * highlighted lines __print__ the _bytes_ as they arrive and the _lines_ as they are emited
+> * __$__ is used to indicate a source of values over time. Popularized by @stalz
+> * the output is generated live on slide transition by the C++ code compiled by emscripten
 ---
 name: whyalgo
 
 #why alogrithms?
----
 
-template: whyalgo
-## documented
+???
+have you seen __sean parent's__ _avoid raw loops_ talk?
 
-the behavior, complexity and tradeoffs selected are
+have you seen __eric neibler's__ _calendar printer_ talk using RangeV3?
+--
+
+* __documented__
+???
+____
+the __behavior__, __complexity__ and __tradeoffs__ selected are
 documented and consistent across implementations
+--
+
+* __stable__
+???
+____
+the implementation is __well specified__, __tested__ and __actively maintained__
+--
+
+* __optimized__
+???
+____
+the implementation is __minimal__ and __efficient__
+--
+
+* __descriptive__
+???
+____
+the usage __describes__ the steps clearly (transform and remove_if vs for loop and an if statement)
+---
+
+name: sequences
+
+#sequences
 
 ---
 
-template: whyalgo
-## stable
+template: sequences
 
-the implementation is well specified and tested
+##what do algorithms operate on?
+
+???
+
+algorithms deal with sequences of values
+
+--
+__sequences of values__
+
+???
+--
+#### in space
+* vector of screen coordinates
+* generator of screen coordinates
+
+???
+
+values distributed in space
+
+--
+
+#### in time
+* mouse moves as screen coordinates
+* network packets
+???
+
+values distributed in time
+
+---
+template: sequences
+
+##how to represent a sequence in documentation or slides?
+
+__values distributed__ |     __completed__  | __failed__
+---------------------: |     ------------:  | ---------: 
+            _in space_ |           `12467:` |         `1246#`
+            _in time_  | `--1-2-4---6--7-:` | `--1-2-4---6-#`
+
+> notation derived from the RxJS project on [github](https://github.com/ReactiveX/RxJS/blob/master/doc/writing-marble-tests.md)
+
+???
+
+vector and generator distribute values in space
+
+async sources distribute values in time
+
+* "-" time: a 'unit' of time
+* ":" complete: The successful completion of a sequence
+* "#" error: An error terminating the iteration of a sequence
+* "1-9" number: represent that value in the sequence
+
+---
+name: shape
+
+#shape
+
+???
 
 ---
 
-template: whyalgo
-## optimized
+template: shape
 
-good tradeoffs have been selected
+##what are the options for __surface__ and __behavior__?
 
-the implementation is minimal and efficient
+???
+the shape is largly derived from a set choices about the __surface__ and __behavior__
+--
 
-the implementation was written well and tested
-well by a few for the benefit of many
+* __abstract__ the sequence or algorithm
+???
+____
+__abstract the sequence or the algorithm?__
 
+__sequence__ iterators, Range | __algorithm__ accumulator step function 
+--
+
+* __flow__ control is push or pull
+???
+____
+__what direction does the sequence flow?__
+
+__pull__ iterators, Enumerator | __push__ Callback, Observer
+--
+
+* __cancel__ the sequence
+???
+____
+__how are sequences interrupted?__
+
+__omission__ stop pulling | __trigger__ race between setting and checking a flag
+--
+
+* __chain__ algorithms together
+???
+____
+__how are algorithms chained?__
+
+__operator chaining__ RangeV3 | __function nesting__ transducer
+---
+
+name: rangev3
+
+##RangeV3
+
+__abstract__ | __flow__ | __cancel__ | __chain__
+:----------- | :------- | :--------- | :--------
+sequence     | pull     | omission   | operator
+???
+---
+
+template: rangev3
+
+The RangeV3 library has two sequence abstractions. 
+???
+--
+
+
+One abstraction is the Range.
+
+```cpp
+template<class Iterator, class EndIterator = Iterator>
+struct range {
+    Iterator begin();
+    EndIterator end();
+};
+```
+???
+--
+
+
+The other abstraction is a View.
+
+```cpp
+template<class T>
+struct view {
+    T get();
+    void next();
+    bool done();
+};
+```
+???
+---
+template: rangev3
+
+```cpp
+auto fiveOddInts = view::ints(0) | //generates next int when asked 
+  view::remove_if([](int n) { return n % 2 == 0; }) | // discard even
+  view::take(5); // stop after 5
+  
+for(auto i : fiveOddInts) {. . .}
+```
+???
+---
+
+name: transducers
+
+##Transducers
+
+__abstract__ | __flow__ | __cancel__ | __chain__
+:----------- | :------- | :--------- | :--------
+algorithm    | push     | omission   | function
+???
+---
+
+template: transducers
+
+Transducers abstract the algorithm by using the accumulate algorithm step function to implement all the algorithms.
+
+```cpp
+struct transducer {
+    template<class NextStep>
+    struct step_impl {
+
+        // implementation goes here
+        // may or may not call nextstep
+        // auto nextstate = nextstep(state, t);
+        template<class State, class T>
+        auto operator()(State state, T t);
+    };
+
+    // used to chain this step to the next step
+    template<class NextStep>
+    auto operator()(NextStep nextstep) {
+        return step_impl<NextStep>(nextstep);
+    }
+};
+```
+
+???
+---
+template: transducers
+
+```cpp
+auto fiveOddInts = comp(
+  filter([](int n) { return n % 2 == 0; }), // discard even
+  take(5)); // stop after 5
+  
+auto result = into(vector<int> {}, fiveOddInts, 
+  range(0, 10)); //generates next int when asked
+```
+???
+---
+
+name: shape
+
+##What does an async algorithm need?
+---
+
+template: shape
+
+__abstract__ | __flow__ | __cancel__ | __chain__
+:----------- | :------- | :--------- | :--------
+__?__        | push     | trigger    | operator
+???
+---
+
+name: rxcpp
+
+## rxcpp 
+
+__abstract__ | __flow__ | __cancel__ | __chain__
+:----------- | :------- | :--------- | :--------
+__sequence__ | push     | trigger    | operator
+
+---
+
+template: rxcpp
+
+The rxcpp library abstracts the sequence with an observer type. 
+
+```cpp
+template<class T>
+struct observer {
+  on_next(T);
+  on_error(std::exception_ptr);
+  on_completed();
+};
+```
+???
+An observer has the same aspects as an iterator pair but in reverse. 
+--
+The rxcpp observable type abstracts the source of a sequence.
+
+```cpp
+template<class T>
+struct observable {
+  void subscribe(observer<T>);
+};
+```
+???
+An 
+---
+
+template: rxcpp
+
+```cpp
+auto fiveOddInts = rxcpp::sources::range(0) | //generates ints sequentially 
+  rxcpp::operators::filter([](int n) { return n % 2 == 0; }) | // discard even
+  rxcpp::operators::take(5); // stop after 5
+
+fiveOddInts.subscribe([](int n){. . .});
+```
+
+???
+---
+##RangeV3 view namespace
+
+```c++
+auto fiveOddInts = view::ints(0) | //generates next int when asked 
+  view::remove_if([](int n) { return n % 2 == 0; }) | // discard even
+  view::take(5); // stop after 5
+  
+// when consumed, will emit:
+// 13579|
+```
+
+The original STL has algorithms that take a value and return a value.
+`pow(), log(), tolower(), itoa(), ...`
+
+The original STL has algorithms that used iterators to abstract the storage of a sequence.
+`copy_if, accumulate, transform, ...`
+
+The RangeV3 proposal redefines the iterator based STL algorithms so that they can also be composed.
+
+The existing proposals for parallel computation are focused on consuming all available resources to compute a result.
+`parallel_for, ...`
+
+The existing STL has async values
+`promise/future`
+
+The asio proposal adds caller-selected future or callback
+
+There are no algorithms for async sequences.
+
+---
+
+# repeatedly refresh content
+
+```cpp
+    rx::observable<>::interval(on_update.now(), seconds(5), on_update).
+        map(as_string{"http://localhost"}).
+        flat_map(
+            [=](std::string url){
+                return http.get(url);
+            }, ofrx_select_result{}).
+        flat_map(
+            [](ofxRx::HttpProgress p){
+                return p.
+                    body().
+                    scan(
+                        std::string{},
+                        [](std::string response, ofxRx::BufferRef<char> br){
+                            response.append(br.begin(), br.begin() + br.size());
+                            return response;
+                        }
+                    );
+            }, ofrx_select_result{}).
+```
+
+---
+
+# repeatedly refresh content
+
+## error handling
+
+```cpp
+        on_error_resume_next(
+            [=](std::exception_ptr ep){
+                return rx::observable<>::timer(on_update.now() + seconds(5), on_update).
+                    map(as_string{rx::util::what(ep)}).
+                    start_with(rx::util::what(ep));
+            }).
+        repeat().
+        finally([=](){response = "stopped!";}).
+```
+
+---
+name: value
+
+#
 ---
 name: represent
 
@@ -159,6 +607,24 @@ template: shapes
 ##what is the shape of the usage of an algorithm?
 
 ---
+name: asio
+
+# asio
+---
+
+template: asio
+
+####supports multiple async contracts
+- callback
+- promise
+
+**must support shape selected for algorithms.**
+---
+
+name: future
+
+# promise/future
+---
 
 name: transducer
 
@@ -213,6 +679,27 @@ name: sfrp
 
 template: sfrp
 
+####Functional Reactive Programming (FRP)
+Conal Elliot describes this as '**values over time**'. Conal specifies two principals that constrain the definition and 
+implementation of an FRP system. 
+
+1. **denotation** - .text[a precise language independent description of the 
+whole system that can be verified without an implementation 
+(one expression would be in the Lambda Calculus)]
+2. **continuous time** - the system will have a valid value for any time value.
+
+Conal continues to develop a very precise denotation that can be resolved precisely into a specification and 
+various implementations. Conal vociferously defends the term FRP when applied to libraries that are not precisely 
+derived from the denotation.
+
+---
+
+template: sfrp
+
+####The Essence and Origins of Functional Reactive Programming
+Conal Elliot @ Lambda Jam [YouTube](https://www.youtube.com/watch?v=j3Q32brCUAI)
+
+####sfrp (c++)
 David Sankel @ CppNow [YouTube](https://www.youtube.com/watch?v=tyaYLGQSr4g),[github](https://github.com/camio/sbase)
 ---
 
@@ -308,15 +795,65 @@ auto filter = [](auto pred) {
 };
 ```
     </textarea>
-    <script src="https://gnab.github.io/remark/downloads/remark-latest.min.js">
+    <!--script src="https://gnab.github.io/remark/downloads/remark-latest.min.js" type="text/javascript" >
+    </script-->
+    <script src="./remark-latest.min.js" type="text/javascript" >
+    </script>
+    <script src="./CustomElements.min.js" type="text/javascript" >
+    </script>
+    <script src="./element.js" type="text/javascript" >
     </script>
     <script>
-      var slideshow = remark.create({
-        ratio: "16:9",
-        highlightLanguage: "cpp",
-        highlightStyle: "tomorrow",
-        highlightSpans: true
-      });
+        var Module = {};
+        var printTo = function(output) {
+            return function(text){
+                if (output) {
+                    text = text.replace(/&/g, "&amp;");
+                    text = text.replace(/</g, "&lt;");
+                    text = text.replace(/>/g, "&gt;");
+                    text = text.replace('\n', '<br>', 'g');
+                    output.innerHTML += text + "<br>";
+                }
+            };
+        };
+    </script>
+    <script src="./examples.js" type="text/javascript" >
+    </script>
+    <script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&delayStartupUntil=configured" type="text/javascript" >
+    </script>
+    <script>
+        var slideshow = remark.create({
+            ratio: "16:9",
+            highlightLanguage: "cpp",
+            highlightStyle: "tomorrow",
+            highlightSpans: true
+        });
+        MathJax.Hub.Config({
+            tex2jax: {
+                skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+                inlineMath: [['$','$'], ['\\(','\\)']]
+            }
+        });
+        MathJax.Hub.Configured();
+        // mathjax examples 
+        // `$$ x = (-b +- sqrt(b^2-4ac))/(2a) . $$`
+        // `$$ \int_{V_1}^{V_2}mVdV =  \int_{s_1}^{s_2} F_s ds $$`
+
+        var calls = {
+            "rxlinesfrombytes": Module.cwrap(
+                'rxlinesfrombytes', // C function
+                null, // return type
+                ['number', 'number', 'number']) // argument types
+        };
+
+        slideshow.on("showSlide", function(slide) {
+            if (!!slide.properties.function){
+                var output = document.getElementById(slide.properties.output);
+                if (output) output.innerHTML = ''; // clear contents
+                Module["print"] = printTo(output);
+                calls[slide.properties.function].apply(Module, slide.properties.arguments.split(','));
+            }
+        });
     </script>
   </body>
 </html>
