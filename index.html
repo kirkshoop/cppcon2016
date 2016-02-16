@@ -7,17 +7,22 @@
     <style>
         body { font-family: 'Droid Serif'; }
         h1, h2, h3 {
-        font-family: 'Yanone Kaffeesatz';
-        font-weight: normal;
+            font-family: 'Yanone Kaffeesatz';
+            font-weight: normal;
         }
         .remark-code, .remark-inline-code { font-family: 'Droid Sans Mono'; }
-
+        .remark-slide-content {
+            padding-bottom: 4em;
+        }
         div.footer {
-        position: absolute;
-        bottom: 50px;
-        right: 20px;
-        height: 20px;
-        width: 100%;
+            bottom: 12px;
+            position: absolute;
+            right: 100px;
+            width: 100%;
+        }
+        
+        .border {
+            border: 2px solid steelblue;
         }
 
         div.emscripten-output {
@@ -25,14 +30,28 @@
             font-size: 14pt;
             border: 2px solid steelblue;
             padding: 5px;
+            background: black;
+            color: lightgreen;
         }
 
         table {
             border-collapse: collapse;
+            width: 100%;
         }
         th, td {
             padding: 5px;
             border: 1px solid steelblue;
+        }
+        td {
+            color: #7f0000;
+        }
+        th {
+            border-bottom: 3px solid steelblue;
+            color: black;
+        }
+        
+        .green {
+            color: seagreen
         }
 
         .column:first-of-type {float:left}
@@ -92,7 +111,7 @@ class: middle
 
 have you watched __sean parent's__ _avoid raw loops_ talk?
 
-have you watched __eric neibler's__ _calendar printer_ talk using RangeV3?
+have you watched __eric neibler's__ _calendar printer_ talk using range-v3?
 
 ---
 
@@ -136,14 +155,64 @@ bytes arrive once a second. as each set of bytes arrives, it is split on `\r`, g
 > * __$__ is used to indicate a source of values over time. Popularized by @stalz
 > * the output is generated live on slide transition by the C++ code compiled by emscripten
 ---
+
+function: rxhttp
+argumentsd: http://localhost:8090/serve.js
+arguments: https://raw.githubusercontent.com/Reactive-Extensions/RxCpp/master/AUTHORS.txt
+output: rxhttplocalhostoutput
+
+# bytes from http GET
+.split-60[
+.column[
+
+__code__ (rxcpp)
+
+```cpp
+struct data { int size; string firstLine;};
+struct model {
+    std::map<string, data> store;
+};
+
+httpGet(url) |
+  flat_map([](response_t r) {
+    return r.progress() |
+      combine_latest(
+        [=](progress_t p, vector<uint8_t> d){
+          return make_tuple(r.url(), p, d);
+        },
+        r.load()) |
+      scan(
+        model{}, 
+        updateModel);
+  }) |
+  subscribe(`println(cout)`);
+```
+
+]
+
+.column[
+
+__output__ (emscripten)
+
+.emscripten-output[
+ <div id="rxhttplocalhostoutput"/>
+]
+
+]
+
+]
+
+???
+---
 name: whyalgo
 
 #why alogrithms?
 
-* ##documented
-* ##stable
-* ##optimized
-* ##descriptive
+* ## .green[documented]
+* ## .green[stable]
+* ## .green[optimized]
+* ## .green[descriptive]
+
 ???
 * the __behavior__, __complexity__ and __tradeoffs__ selected are
 documented and consistent across implementations
@@ -261,7 +330,7 @@ template: shape
 the shape is largly derived from a set choices about the __surface__ and __behavior__
 --
 
-* ##__abstract__ the sequence or algorithm?
+* ## .green[__abstract__] the sequence or algorithm?
 ???
 ____
 __abstract the sequence or the algorithm?__
@@ -269,7 +338,7 @@ __abstract the sequence or the algorithm?__
 __sequence__ iterators, Range | __algorithm__ accumulator step function 
 --
 
-* ##__flow__ control using push or pull?
+* ## .green[__flow__] control using push or pull?
 ???
 ____
 __what direction does the sequence flow?__
@@ -277,7 +346,7 @@ __what direction does the sequence flow?__
 __pull__ iterators, Enumerator | __push__ Callback, Observer
 --
 
-* ##__cancel__ by ommission or trigger?
+* ## .green[__cancel__] by ommission or trigger?
 ???
 ____
 __how are sequences interrupted?__
@@ -285,17 +354,17 @@ __how are sequences interrupted?__
 __omission__ stop pulling | __trigger__ race between setting and checking a flag
 --
 
-* ##__chain__ algorithms using operator| or function nesting?
+* ## .green[__chain__] algorithms using operator| or function nesting?
 ???
 ____
 __how are algorithms chained?__
 
-__operator chaining__ RangeV3 | __function nesting__ transducer
+__operator chaining__ range-v3 | __function nesting__ transducer
 ---
 
 name: rangev3
 
-##RangeV3
+##range-v3
 
 __abstract__ | __flow__ | __cancel__ | __chain__
 :----------- | :------- | :--------- | :--------
@@ -307,7 +376,7 @@ adds operator chaining to the stl
 ---
 template: rangev3
 
-##the algorithms in RangeV3 use sequences that match the range concept
+##the range concept
 
 ```cpp
 template<class Iterator, class EndIterator = Iterator>
@@ -321,6 +390,32 @@ struct range {
 EndIterator may be a different type than Iterator to facilitate sentinel EndIterators
 
 ---
+
+## range-v3 - implement the transform view 
+
+```cpp
+// A class that adapts an existing range with a function
+template<class Rng, class Fun>
+class transform_view : public view_adaptor<transform_view<Rng, Fun>, Rng>
+{
+    class adaptor : public adaptor_base
+    {
+        // . . .
+        auto get(range_iterator_t<Rng> it) const -> decltype(fun_(*it)) {
+            return `fun_(*it)`;
+        }
+    };
+    adaptor begin_adaptor() const { return {fun_}; }
+    adaptor end_adaptor() const { return {fun_}; }
+    // . . .
+};
+template<class Rng, class Fun>
+transform_view<Rng, Fun> transform(Rng && rng, Fun fun) {
+    return {std::forward<Rng>(rng), std::move(fun)};
+}
+```
+???
+---
 template: rangev3
 
 ##using operators to chain algorithms together
@@ -330,7 +425,7 @@ auto fiveOddInts = view::ints(0) | //generates next int when asked
   view::remove_if([](int n) { return n % 2 == 0; }) | // discard even ints
   view::take(5); // stop after 5
   
-for(auto i : fiveOddInts) {. . .}
+auto result = fiveOddInts | view::to_vector;
 ```
 ???
 ---
@@ -348,36 +443,58 @@ algorithm    | push     | omission   | function
 
 template: transducers
 
-##Transducers abstract the algorithm by using the accumulate algorithm step function to implement all the algorithms.
+##the step function
 
 ```cpp
 struct transducer {
     template<class NextStep>
-    struct step_impl {
+    struct step {
         template<class State, class T>
-        auto operator()(State state, T t);
+        auto operator()(State state, T v);
+        template<class State>
+        auto operator()(State state);
     };
-
     template<class NextStep>
     auto operator()(NextStep nextstep) {
-        return step_impl<NextStep>(nextstep);
+        return step<NextStep>(nextstep);
     }
 };
 ```
 
 ???
-`step_impl::operator()` is where a call to nextstep would pass the value along.
+`step::operator()` is where a call to nextstep would pass the value along.
 
 ---
 template: transducers
+
+##implement the filterer transducer
+
+```cpp
+  auto filterer = [](auto pred) {
+    return [=](auto step) {
+      return stateless(
+        [=](auto s, auto v) {
+          if (`pred(v)`) {return step(s, v);}
+          return s;
+        },
+        [=](auto s){
+          return step(s);
+        });
+    };
+  };
+```
+???
+---
+template: transducers
+
+##using function nesting to chain algorithms together
 
 ```cpp
 auto fiveOddInts = comp(
   filter([](int n) { return n % 2 == 0; }), // discard even
   take(5)); // stop after 5
   
-auto result = into(vector<int> {}, fiveOddInts, 
-  range(0, 10)); //generates next int when asked
+auto result = into(vector<int> {}, fiveOddInts, range(0, 10));
 ```
 ???
 ---
@@ -391,7 +508,7 @@ template: shape
 
 __abstract__ | __flow__ | __cancel__ | __chain__
 :----------- | :------- | :--------- | :--------
-__?__        | push     | trigger    | operator
+__?__        | __?__    | trigger    | operator
 ???
 ---
 
@@ -401,15 +518,21 @@ name: rxcpp
 
 __abstract__ | __flow__ | __cancel__ | __chain__
 :----------- | :------- | :--------- | :--------
-__sequence__ | push     | trigger    | operator
+__sequence__ | __push__ | trigger    | operator
 
 ---
 
 template: rxcpp
 
-The rxcpp library abstracts the sequence with an observer type. 
+## concepts in rxcpp
 
+.split-50[
+.column[
 ```cpp
+struct subscription {
+  void unsubscribe();  
+};
+
 template<class T>
 struct observer {
   on_next(T);
@@ -417,61 +540,143 @@ struct observer {
   on_completed();
 };
 ```
-???
-An observer has the same aspects as an iterator pair but in reverse. 
---
-The rxcpp observable type abstracts the source of a sequence.
-
+]
+.column[
 ```cpp
 template<class T>
+struct subscriber 
+  : public observer<T>
+  , public subscription {
+};
+
+template<class T>
 struct observable {
-  void subscribe(observer<T>);
+  subscription subscribe(subscriber<T>);
+};
+```
+]
+]
+???
+* `subscription` controls the lifetime of the subscribe and is shared with the caller
+* `observer` has the same aspects as an iterator pair but in reverse
+* `observable` allows __hot__ sources to be shared and __cold__ sources to lazy start.
+---
+
+## rxcpp - implement the filter operator
+
+```cpp
+auto filter = [](auto pred) {
+  return [=](auto subscriber) {
+    return make_subscriber(
+      [=](auto v) {
+        if (`pred(v)`) {
+          subscriber.on_next(v);
+        }
+      },
+      [=](std::exception_ptr ep) {
+        subscriber.on_error(ep);
+      },
+      [=]() {
+        subscriber.on_completed();
+      }
+    );
+  }
 };
 ```
 ???
-An 
 ---
 
 template: rxcpp
 
+##using operators to chain algorithms together
+
 ```cpp
-auto fiveOddInts = rxcpp::sources::range(0) | //generates ints sequentially 
-  rxcpp::operators::filter([](int n) { return n % 2 == 0; }) | // discard even
-  rxcpp::operators::take(5); // stop after 5
+auto fiveOddInts = tempSensor() | 
+  filter([](int n) { return n % 2 == 0; }) | // discard even
+  take(5); // stop after 5
 
 fiveOddInts.subscribe([](int n){. . .});
 ```
 
 ???
----
-##RangeV3 view namespace
 
-```c++
-auto fiveOddInts = view::ints(0) | //generates next int when asked 
-  view::remove_if([](int n) { return n % 2 == 0; }) | // discard even
-  view::take(5); // stop after 5
-  
-// when consumed, will emit:
-// 13579|
+---
+
+name: asyncgenerator
+
+## async_generator 
+
+__abstract__ | __flow__ | __cancel__ | __chain__
+:----------- | :------- | :--------- | :--------
+__sequence__ | __pull__ | trigger    | operator
+
+---
+
+template: asyncgenerator
+
+## async_generator concepts
+
+.split-50[
+.column[
+```cpp
+template<class T>
+struct await_iterator {
+  bool await_ready();
+  void await_suspend(coroutine_handle<>);
+  async_iterator<T> await_resume();
+};
+
+template<class T>
+struct async_iterator {
+    T& operator*();
+    await_iterator<T> operator++();
+};
+```
+]
+.column[
+```cpp
+template<class T>
+struct async_generator {
+    await_iterator<T> begin();
+    async_iterator<T> end();
+};
+```
+]
+]
+???
+---
+template: asyncgenerator
+
+## implement filter operator
+
+```cpp
+  template<typename T, typename P>
+  async_generator<T> filter(async_generator<T> s, P pred) {
+    for co_await(auto&& v : s) {
+      if (pred(v)) {
+        co_yield v;
+      }
+    }
+  }
+```
+???
+
+---
+template: asyncgenerator
+
+##using operators to chain algorithms together
+
+```cpp
+auto fiveOddInts = tempSensor() |
+  filter([](int n) { return n % 2 == 0; }) | // discard even
+  take(5); // stop after 5
+
+for co_await(auto n : fiveOddInts) {
+  // . . . 
+}
 ```
 
-The original STL has algorithms that take a value and return a value.
-`pow(), log(), tolower(), itoa(), ...`
-
-The original STL has algorithms that used iterators to abstract the storage of a sequence.
-`copy_if, accumulate, transform, ...`
-
-The RangeV3 proposal redefines the iterator based STL algorithms so that they can also be composed.
-
-The existing proposals for parallel computation are focused on consuming all available resources to compute a result.
-`parallel_for, ...`
-
-The existing STL has async values
-`promise/future`
-
-The asio proposal adds caller-selected future or callback
-
-There are no algorithms for async sequences.
+???
 
 ---
 
@@ -483,7 +688,7 @@ There are no algorithms for async sequences.
         flat_map(
             [=](std::string url){
                 return http.get(url);
-            }, ofrx_select_result{}).
+            }).
         flat_map(
             [](ofxRx::HttpProgress p){
                 return p.
@@ -495,9 +700,9 @@ There are no algorithms for async sequences.
                             return response;
                         }
                     );
-            }, ofrx_select_result{}).
+            }).
 ```
-
+???
 ---
 
 # repeatedly refresh content
@@ -514,6 +719,91 @@ There are no algorithms for async sequences.
         repeat().
         finally([=](){response = "stopped!";}).
 ```
+???
+---
+name: algo
+
+#alogrithms
+---
+
+template: algo
+
+<rx-marbles key="filter"/>
+
+???
+remove_if_not (range-v3) 
+copy_if
+---
+
+template: algo
+
+<rx-marbles key="map"/>
+
+???
+transform (range-v3)
+---
+
+template: algo
+
+<rx-marbles key="merge"/>
+
+???
+join (range-v3)
+---
+
+template: algo
+
+<rx-marbles key="combineLatest"/>
+
+???
+---
+
+template: algo
+
+<rx-marbles key="amb"/>
+
+???
+---
+template: algo
+
+<rx-marbles key="scan"/>
+
+???
+---
+template: algo
+
+<rx-marbles key="reduce"/>
+
+???
+---
+##range-v3 view namespace
+
+```c++
+auto fiveOddInts = view::ints(0) | //generates next int when asked 
+  view::remove_if([](int n) { return n % 2 == 0; }) | // discard even
+  view::take(5); // stop after 5
+  
+// when consumed, will emit:
+// 13579|
+```
+
+The original STL has algorithms that take a value and return a value.
+`pow(), log(), tolower(), itoa(), ...`
+
+The original STL has algorithms that used iterators to abstract the storage of a sequence.
+`copy_if, accumulate, transform, ...`
+
+The range-v3 proposal redefines the iterator based STL algorithms so that they can also be composed.
+
+The existing proposals for parallel computation are focused on consuming all available resources to compute a result.
+`parallel_for, ...`
+
+The existing STL has async values
+`promise/future`
+
+The asio proposal adds caller-selected future or callback
+
+There are no algorithms for async sequences.
 
 ---
 name: value
@@ -553,46 +843,6 @@ template: represent
 
 ##l
 
----
-name: algo
-
-#alogrithms
----
-
-template: algo
-
-##filter (copy_if)
----
-
-template: algo
-
-##transform (map)
----
-
-template: algo
-
-##merge
----
-
-template: algo
-
-##amb
----
-template: algo
-
-##withLatestFrom
----
-template: algo
-
-##scan
----
-template: algo
-
-##switch
----
-template: algo
-
-##window
 ---
 
 name: shapes
@@ -890,7 +1140,11 @@ async sources distribute values in time
             "rxlinesfrombytes": Module.cwrap(
                 'rxlinesfrombytes', // C function
                 null, // return type
-                ['number', 'number', 'number']) // argument types
+                ['number', 'number', 'number']), // argument types
+            "rxhttp": Module.cwrap(
+                'rxhttp', // C function
+                null, // return type
+                ['string']) // argument types
         };
 
         slideshow.on("showSlide", function(slide) {
