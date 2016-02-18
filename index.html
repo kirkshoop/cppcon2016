@@ -322,46 +322,192 @@ values distributed in time
 
 ---
 
-template: shape
-
 #what are the design options?
+
+* ## .green[__abstract__] the sequence or algorithm?
+* ## .green[__flow__] control using push or pull?
+* ## .green[__cancel__] by ommission or trigger?
+* ## .green[__chain__] algorithms using operator| or function nesting?
 
 ???
 the shape is largly derived from a set choices about the __surface__ and __behavior__
---
-
-* ## .green[__abstract__] the sequence or algorithm?
-???
-____
-__abstract the sequence or the algorithm?__
-
-__sequence__ iterators, Range | __algorithm__ accumulator step function 
---
-
-* ## .green[__flow__] control using push or pull?
-???
-____
-__what direction does the sequence flow?__
-
-__pull__ iterators, Enumerator | __push__ Callback, Observer
---
-
-* ## .green[__cancel__] by ommission or trigger?
-???
-____
-__how are sequences interrupted?__
-
-__omission__ stop pulling | __trigger__ race between setting and checking a flag
---
-
-* ## .green[__chain__] algorithms using operator| or function nesting?
-???
-____
-__how are algorithms chained?__
-
-__operator chaining__ range-v3 | __function nesting__ transducer
+* __sequence__ iterators, Range | __algorithm__ accumulator step function 
+* __pull__ iterators, Enumerator | __push__ Callback, Observer
+* __omission__ stop pulling | __trigger__ race between setting and checking a flag
+* __operator chaining__ range-v3 | __function nesting__ transducer
 ---
 
+name: design
+
+# what is needed to build async algorithms?
+
+__abstract__ | __flow__ | __cancel__ | __chain__
+:----------- | :------- | :--------- | :--------
+sequence     | push     | trigger    | operator
+
+???
+push a sequence through operator-chained algorithms until a trigger or end of sequence.
+---
+
+.split-60[
+.column[
+
+####push sequence implementations
+```cpp
+const auto ints = [](auto first, auto last){
+    return [=](auto r){
+        for(auto i=first;i <= last; ++i){
+            r(i);
+        }
+    };
+};
+const auto copy_if = [](auto pred){
+    return [=](auto dest){
+        return [=](auto v){
+            if (pred(v)) dest(v);
+        };
+    };
+};
+const auto printto = [](auto& output){
+    return [&](auto v) {
+        output << v << endl;
+    };
+};
+auto even = [](auto v){return (v % 2) == 0;};
+```
+
+]
+
+.column[
+####push sequence concepts
+```cpp
+template<class Receiver>
+struct sender
+{
+    void operator()(Receiver r);
+};
+
+template<class ReceiverV>
+struct algorithm
+{
+    ReceiverU operator()(ReceiverV r);
+};
+
+template<class V>
+struct receiver
+{
+    void operator()(V v);
+};
+```
+
+]
+]
+
+???
+---
+
+function: designpush
+arguments: 0, 9
+output: designpushoutput
+
+## push sequence
+
+.split-60[
+.column[
+
+__code__
+
+```cpp
+ints(0, 9)(copy_if(even)(printto(cout)));
+```
+
+]
+
+.column[
+
+__output__ (emscripten)
+
+.emscripten-output[
+ <div id="designpushoutput"/>
+]
+
+]
+
+]
+
+???
+looks like lisp!
+obviously needs to chain with operator|
+---
+
+function: designoperator
+arguments: 0, 9
+output: designoperatoroutput
+
+## push sequence
+
+.split-60[
+.column[
+
+__code__
+
+```cpp
+ints(0, 9) | 
+  copy_if(even) | 
+  printto(cout);
+```
+
+]
+
+.column[
+
+__output__ (emscripten)
+
+.emscripten-output[
+ <div id="designoperatoroutput"/>
+]
+
+]
+
+]
+
+???
+---
+
+function: designlast
+arguments: 0, 9
+output: designlastoutput
+
+## push sequence
+
+.split-60[
+.column[
+
+__code__
+
+```cpp
+ints(0, 9) | 
+  copy_if(even) | 
+  last_or_default(42) | 
+  printto(cout);
+```
+
+]
+
+.column[
+
+__output__ (emscripten)
+
+.emscripten-output[
+ <div id="designlastoutput"/>
+]
+
+]
+
+]
+
+???
+---
 name: rangev3
 
 ##range-v3
@@ -738,6 +884,14 @@ copy_if
 template: algo
 
 <rx-marbles key="map"/>
+
+???
+take (range-v3)
+---
+
+template: algo
+
+<rx-marbles key="take"/>
 
 ???
 transform (range-v3)
@@ -1137,6 +1291,18 @@ async sources distribute values in time
         // $$`
 
         var calls = {
+            "designlast": Module.cwrap(
+                'designlast', // C function
+                null, // return type
+                ['number', 'number']), // argument types
+            "designoperator": Module.cwrap(
+                'designoperator', // C function
+                null, // return type
+                ['number', 'number']), // argument types
+            "designpush": Module.cwrap(
+                'designpush', // C function
+                null, // return type
+                ['number', 'number']), // argument types
             "rxlinesfrombytes": Module.cwrap(
                 'rxlinesfrombytes', // C function
                 null, // return type
