@@ -82,9 +82,17 @@ auto operator|(SenderV sv, ReceiverV rv) {
 
 }
 
+extern"C" {
+    void designpush(int, int);
+}
+
 void designpush(int first, int last){
     using namespace designpushdef;
     ints(first, last)(designpushdef::copy_if(even)(printto(cout)));
+}
+
+extern"C" {
+    void designoperator(int, int);
 }
 
 void designoperator(int first, int last){

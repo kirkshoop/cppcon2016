@@ -51,8 +51,20 @@ observable<vector<uint8_t>> readAsyncBytes(int stepms, int count, int windowSize
         }).
         merge();
 
-    return interval(s.now() + step, step, s).
-        zip([](int, vector<uint8_t> v){return v;}, bytes);
+    auto result = interval(s.now() + step, step, s).
+        zip([](int, vector<uint8_t> v){return v;}, bytes).
+        publish().
+        ref_count();
+
+    return result.
+        // workaround bug in zip by using timeout
+        take_until(result.map([=](auto...){
+            return observable<>::timer(s.now() + (step * 2), s);
+        }).switch_on_next());
+}
+
+extern"C" {
+    void rxlinesfrombytes(int, int, int);
 }
 
 void rxlinesfrombytes(int stepms, int count, int windowSize)
@@ -94,9 +106,10 @@ void rxlinesfrombytes(int stepms, int count, int windowSize)
         merge();
 
     // print result
-    lines.
-        subscribe(
-            lifetime,
-            println(cout), 
-            [](exception_ptr ep){cout << what(ep) << endl;});
+    lifetime.add(
+        lines.
+            subscribe(
+                println(cout), 
+                [](exception_ptr ep){cout << what(ep) << endl;}));
 }
+

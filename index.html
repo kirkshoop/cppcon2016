@@ -116,6 +116,7 @@ have you watched __eric neibler's__ _calendar printer_ talk using range-v3?
 ---
 
 function: rxlinesfrombytes
+types: number,number,number
 arguments: 1000, 4, 11
 output: rxlinesfrombytesoutput
 
@@ -156,7 +157,54 @@ bytes arrive once a second. as each set of bytes arrives, it is split on `\r`, g
 > * the output is generated live on slide transition by the C++ code compiled by emscripten
 ---
 
+function: rxmousedrags
+output: rxmousedragsoutput
+
+# moves while mouse button down
+.split-60[
+.column[
+
+__code__ (rxcpp)
+
+```cpp
+auto down$ = mousedown$("#window");
+auto up$ = mouseup$("#window");
+auto move$ = mousemove$("#window");
+
+down$ |
+  flat_map([=](MouseEvent){
+    return move$ |
+      take_until(up$) |
+      map([](MouseEvent){return 1;}) |
+      start_with(0) |
+      sum();
+  }) |
+  subscribe( 
+    [](int c){
+      cout << c << " moves while mouse down" << endl;
+    },
+    [](exception_ptr ep){cout << what(ep) << endl;}));
+```
+
+]
+
+.column[
+
+__output__ (emscripten)
+
+.emscripten-output[
+ <div id="rxmousedragsoutput"/>
+]
+
+]
+
+]
+
+???
+---
+
 function: rxhttp
+types: string
 arguments: http://localhost:8090/serve.js
 argumentsd: https://raw.githubusercontent.com/Reactive-Extensions/RxCpp/master/AUTHORS.txt
 output: rxhttplocalhostoutput
@@ -407,6 +455,7 @@ struct receiver
 ---
 
 function: designpush
+types: number,number
 arguments: 0, 9
 output: designpushoutput
 
@@ -441,6 +490,7 @@ obviously needs to chain with operator|
 ---
 
 function: designoperator
+types: number,number
 arguments: 0, 9
 output: designoperatoroutput
 
@@ -475,7 +525,8 @@ __output__ (emscripten)
 ---
 
 function: designlast
-arguments: 0, 9, 42
+types: number,number,number
+arguments: 0, 100000000, 42
 output: designlastoutput
 
 ## push sequence
@@ -486,7 +537,7 @@ output: designlastoutput
 __code__
 
 ```cpp
-ints(0, 9) | 
+ints(0, 100000000) | 
   copy_if(even) | 
   last_or_default(42) | 
   printto(cout);
@@ -510,6 +561,7 @@ __output__ (emscripten)
 ---
 
 function: designtake
+types: number,number,number
 arguments: 0, 9, 3
 output: designtakeoutput
 
@@ -521,7 +573,7 @@ output: designtakeoutput
 __code__
 
 ```cpp
-ints(0, 9) | 
+async_ints(0, 9) | 
   copy_if(even) | 
   take(3) | 
   printto(cout);
@@ -535,6 +587,42 @@ __output__ (emscripten)
 
 .emscripten-output[
  <div id="designtakeoutput"/>
+]
+
+]
+
+]
+
+???
+---
+
+function: designerror
+types: number,number,number
+arguments: 0, 9, 3
+output: designerroroutput
+
+## push sequence
+
+.split-60[
+.column[
+
+__code__
+
+```cpp
+async_ints(0, 9) | 
+  copy_if(always_throw) | 
+  take(3) | 
+  printto(cout);
+```
+
+]
+
+.column[
+
+__output__ (emscripten)
+
+.emscripten-output[
+ <div id="designerroroutput"/>
 ]
 
 ]
@@ -1325,39 +1413,18 @@ async sources distribute values in time
         // \end{array}
         // $$`
 
-        var calls = {
-            "designtake": Module.cwrap(
-                'designtake', // C function
-                null, // return type
-                ['number', 'number', 'number']), // argument types
-            "designlast": Module.cwrap(
-                'designlast', // C function
-                null, // return type
-                ['number', 'number', 'number']), // argument types
-            "designoperator": Module.cwrap(
-                'designoperator', // C function
-                null, // return type
-                ['number', 'number']), // argument types
-            "designpush": Module.cwrap(
-                'designpush', // C function
-                null, // return type
-                ['number', 'number']), // argument types
-            "rxlinesfrombytes": Module.cwrap(
-                'rxlinesfrombytes', // C function
-                null, // return type
-                ['number', 'number', 'number']), // argument types
-            "rxhttp": Module.cwrap(
-                'rxhttp', // C function
-                null, // return type
-                ['string']) // argument types
-        };
-
         slideshow.on("showSlide", function(slide) {
             if (!!slide.properties.function){
                 var output = document.getElementById(slide.properties.output);
                 if (output) output.innerHTML = ''; // clear contents
                 Module["print"] = printTo(output);
-                calls[slide.properties.function].apply(Module, slide.properties.arguments.split(','));
+                if (!!slide.properties.function) {
+                    Module.ccall(
+                        slide.properties.function, // C function
+                        slide.properties.return || null, // return type
+                        (slide.properties.types || "").split(','), // argument types
+                        (slide.properties.arguments || "").split(',')) // arguments
+                }
             }
         });
         slideshow.on("hideSlide", function(slide) {

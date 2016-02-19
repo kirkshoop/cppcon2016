@@ -3,24 +3,33 @@
 namespace designcontractdef 
 {
 /*
+struct subscription
+{
+    bool is_stopped();
+    void stop();
+    void add(subscription);
+    void remove(subscription);
+};
+
 template<class V>
 struct receiver
 {
+    subscription lifetime;
     void operator()(V v);
     void operator()(exception_ptr);
     void operator()();
 };
 
-template<class SenderV>
+template<class ReceiverV>
 struct algorithm
 {
-    SenderU operator()(SenderV s);
+    ReceiverU operator()(ReceiverV dest);
 };
 
 template<class Receiver>
 struct sender
 {
-    void operator()(Receiver r);
+    subscription operator()(Receiver dest);
 };
 */
 
@@ -31,26 +40,29 @@ struct state
     Payload& get() {
         return *p;
     }
-    const Payload& get() const {
+    Payload& get() const {
         return *p;
     }
 private:
-    Payload* p;
+    mutable Payload* p;
 };
 template<>
 struct state<void>
 {
 };
 
-//
-// \brief represents the scope of an async operation. Holds a set of nested lifetiimes.
-//
+///
+/// \brief A subscription represents the scope of an async operation. Holds a set of nested lifetimes. Can be used to make state that is scoped to the subscription. Can call arbitratry functions at the end of the lifetime.
+///
 struct subscription
 {
     subscription() : store(make_shared<shared>()) {}
+    /// \brief used to exit loops or otherwise stop work scoped to this subscription.
+    /// \returns bool - if true do not access any state objects.
     bool is_stopped() const {
         return store->stopped;
     }
+    /// \brief 
     void add(const subscription& s) {
         if (s == *this) {std::abort();}
         store->others.insert(s);
@@ -59,6 +71,10 @@ struct subscription
     void erase(const subscription& s) {
         if (s == *this) {std::abort();}
         store->others.erase(s);
+    }
+    void add(function<void()> stopper) {
+        store->stoppers.emplace_front(stopper);
+        if (store->stopped) stop();
     }
     template<class Payload, class... ArgN>
     state<Payload> make_state(ArgN... argn) {
@@ -75,24 +91,31 @@ struct subscription
     void stop() const {
         store->stopped = true;
         {
-            auto expired = std::move(store->others);
-            for (auto& o : expired) {
+            auto others = std::move(store->others);
+            for (auto& o : others) {
                 o.stop();
             }
         }
         {
-            auto destructors = std::move(store->destructors);
-            for (auto& d : destructors) {
-                d();
+            auto stoppers = std::move(store->stoppers);
+            for (auto& s : stoppers) {
+                s();
             }
         }
     }
 private:
     struct shared
     {
-        shared() : stopped(false) {}
+        ~shared(){
+            auto expired = std::move(destructors);
+            for (auto& d : expired) {
+                d();
+            }
+        }
+        shared() : stopped(false) {cout << "new lifetime" << endl;}
         bool stopped;
         set<subscription> others;
+        deque<function<void()>> stoppers;
         deque<function<void()>> destructors;
     };
     shared_ptr<shared> store;
@@ -352,22 +375,53 @@ auto make_receiver(Dest d, state<Payload> s, Next n = Next{}, Error e = Error{},
 }
 
 const auto ints = [](auto first, auto last){
-    return [=](auto r){
-        for(auto i=first;i <= last; ++i){
-            r(i);
+    cout << "new ints" << endl;
+    return [=](auto dest){
+        cout << "ints bound to dest" << endl;
+        for(auto i = first;i != last; ++i){
+            dest(i);
         }
-        r();
+        dest();
+        return dest.lifetime;
+    };
+};
+const auto async_ints = [](auto first, auto last){
+    cout << "new async_ints" << endl;
+    return [=](auto dest){
+        cout << "async_ints bound to dest" << endl;
+        auto store = dest.lifetime.template make_state<std::decay_t<decltype(first)>>(first);
+        auto sched = jsthread.create_coordinator().get_scheduler().create_worker();
+        auto tick = [store, dest, sched, last](const schedulable& sb){
+            if (dest.lifetime.is_stopped()) {return;}
+            auto& current = store.get();
+            if (current == last) {
+                dest(); 
+                return;
+            }
+            dest(current++);
+            if (current != last) {
+                sb.schedule();
+                return;
+            }
+            dest();
+        };
+        sched.schedule(tick);
+        return dest.lifetime;
     };
 };
 const auto copy_if = [](auto pred){
+    cout << "new copy_if" << endl;
     return [=](auto dest){
+        cout << "copy_if bound to dest" << endl;
         return make_receiver(dest, [=](auto& d, auto v){
             if (pred(v)) d(v);
         });
     };
 };
 const auto last_or_default = [](auto def){
+        cout << "new last_or_default" << endl;
     return [=](auto dest){
+        cout << "last_or_default bound to dest" << endl;
         auto last = dest.lifetime.template make_state<std::decay_t<decltype(def)>>(def);
         return make_receiver(dest, last, 
             [](auto& d, auto& l, auto v){
@@ -383,7 +437,9 @@ const auto last_or_default = [](auto def){
     };
 };
 const auto take = [](int n){
+    cout << "new take" << endl;
     return [=](auto dest){
+        cout << "take bound to dest" << endl;
         auto remaining = dest.lifetime.template make_state<int>(n);
         return make_receiver(dest, remaining, 
             [](auto& d, auto& r, auto v){
@@ -395,7 +451,9 @@ const auto take = [](int n){
             });
     };
 };
+
 const auto printto = [](auto& output){
+    cout << "new printto" << endl;
     subscription lifetime;
     auto values = lifetime.template make_state<int>(0);
     return make_receiver(
@@ -427,12 +485,35 @@ auto operator|(SenderV sv, ReceiverV rv) {
 
 }
 
+extern"C" {
+    void designlast(int, int, int);
+}
+
 void designlast(int first, int last, int def){
     using namespace designcontractdef;
-    ints(first, last) | designcontractdef::copy_if(even) | last_or_default(def) | printto(cout);
+    auto lifetime = ints(first, last) | designcontractdef::copy_if(even) | last_or_default(def) | printto(cout);
+    lifetime.add([](){cout << "stopped" << endl;});
+    lifetime.template make_state<destruction>();
+}
+
+extern"C" {
+    void designtake(int, int, int);
 }
 
 void designtake(int first, int last, int count){
     using namespace designcontractdef;
-    ints(first, last) | designcontractdef::copy_if(even) | take(count) | printto(cout);
+    auto lifetime = async_ints(first, last) | designcontractdef::copy_if(even) | take(count) | printto(cout);
+    lifetime.add([](){cout << "stopped" << endl;});
+    lifetime.template make_state<destruction>();
+}
+
+extern"C" {
+    void designerror(int, int, int);
+}
+
+void designerror(int first, int last, int count){
+    using namespace designcontractdef;
+    auto lifetime = async_ints(first, last) | designcontractdef::copy_if(always_throw) | take(count) | printto(cout);
+    lifetime.add([](){cout << "stopped" << endl;});
+    lifetime.template make_state<destruction>();
 }

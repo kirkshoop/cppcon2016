@@ -113,6 +113,10 @@ std::ostream& operator<< (std::ostream& out, const model& m) {
     return out;
 }
 
+extern"C" {
+    void rxhttp(const char*);
+}
+
 void rxhttp(const char* url){
     httpGet(url).
         map([](response_t response){
