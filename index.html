@@ -201,6 +201,11 @@ __output__ (emscripten)
 ]
 
 ???
+on each mouse up, print the number of moue moves since mouse down.
+
+shows how you can adapt existing sequences to async algorithms
+
+the mouse event functions wrap HTML DOM addeventlistener access provided by emscripten.
 ---
 
 function: rxhttp
@@ -221,7 +226,7 @@ struct model {
     map<string, data> store;
 };
 
-httpGet(url) |
+httpGet("http://localhost:8090/serve.js") |
   flat_map([](response_t r) {
     return r.progress() |
       combine_latest(
@@ -251,6 +256,10 @@ __output__ (emscripten)
 ]
 
 ???
+> a common pattern is to scan into a model. the result is a source of model updates
+> in the JS world scan to a model is an implementation of the flux concept.
+
+httpGet wraps XmlHttpRequest access provided by emscripten.
 ---
 name: whyalgo
 
@@ -395,6 +404,10 @@ sequence     | push     | trigger    | operator
 
 ???
 push a sequence through operator-chained algorithms until a trigger or end of sequence.
+--
+## Next up, design a toy implementation of this
+???
+use the observer/observable pattern as used in ReactiveExtensions as inspiration.
 ---
 
 .split-60[
@@ -522,6 +535,52 @@ __output__ (emscripten)
 ]
 
 ???
+looks nicer. now improve the contract.
+---
+## what needs to change to support last_or_default?
+
+<rx-marbles key="last"/>
+???
+last neeeds to know when the source is complete
+---
+
+.split-60[
+.column[
+
+####push sequence implementations
+```cpp
+const auto last_or_default = [](auto def){
+  return [=](auto dest){
+     auto l = make_shared<decay_t<decltype(def)>>(def);
+     return make_receiver( 
+       [=](auto v){
+         l = v;
+       },
+       [=](){
+         d(l);
+         d();
+       });
+  };
+};
+```
+
+]
+
+.column[
+####push sequence concepts
+```cpp
+template<class V>
+struct receiver
+{
+  void operator()(V v);
+  `void operator()();`
+};
+```
+
+]
+]
+
+???
 ---
 
 function: designlast
@@ -529,7 +588,7 @@ types: number,number,number
 arguments: 0, 100000000, 42
 output: designlastoutput
 
-## push sequence
+## what needs to change to support last_or_default?
 
 .split-60[
 .column[
@@ -558,6 +617,76 @@ __output__ (emscripten)
 ]
 
 ???
+100 million ints are filtered to 50 million even ints and then the last even int is printed.
+---
+## what needs to change to support take?
+
+<rx-marbles key="take"/>
+???
+take needs to be able to stop the source.
+---
+
+.split-60[
+.column[
+
+####push sequence implementations
+```cpp
+const auto take = [](int n){
+  return [=](auto dest){
+    auto remaining = dest.lifetime.
+      template make_state<int>(n);
+    return make_receiver(dest, remaining, 
+      [](auto& d, auto& r, auto v){
+        if (r-- == 0) {
+          d();
+        }
+        d(v);
+      });
+  };
+};
+```
+
+]
+
+.column[
+####push sequence concepts
+```cpp
+struct subscription
+{
+    using stopper = function<void()>;
+    bool is_stopped();
+    void stop();
+    void insert(subscription);
+    void erase(subscription);
+    void insert(stopper);
+    template<class Payload, 
+      class... ArgN>
+    state<Payload> 
+    make_state(ArgN... argn);
+};
+
+template<class V>
+struct receiver
+{
+  subscription lifetime;
+  void operator()(V v);
+  void operator()();
+};
+```
+
+]
+]
+
+???
+subscription owns the lifetime of a sender/receiver chain.
+
+subscription lifetimes can be nested.
+
+stop will call stop on all nested subscriptions then call all stoppers in the inverse order they were inserted.
+
+make_state will allocate heap that is scoped by the subscription lifetime. all the state is destructed when the last copy of the subscription is destructed.
+
+take shows expanded make_receiver that can keep track of state, pass through calls to the dest by default and connect the lifetimes.
 ---
 
 function: designtake
@@ -565,7 +694,7 @@ types: number,number,number
 arguments: 0, 9, 3
 output: designtakeoutput
 
-## push sequence
+## what needs to change to support take?
 
 .split-60[
 .column[
@@ -594,6 +723,20 @@ __output__ (emscripten)
 ]
 
 ???
+output shows the expanded lifetime stages for a sender/receiver pair.
+
+in the __construct__ phase new operators are constructed
+
+in the __subscribe__ phase the lifetime is constructed and the dest for each operator is provided
+
+in the __run__ phase the next notifications occur.
+
+in the __complete__ phase complete is delievered followed by stop. or stop is called.
+
+when the objects go out of scope the destructors are called. 
+
+__flow__ construct from source to dest, subscribe from dest to source, run and complete flow from source to dest and stop from dest to source.
+
 ---
 
 function: designerror

@@ -5,10 +5,12 @@ namespace designcontractdef
 /*
 struct subscription
 {
+    using stopper = function<void()>;
     bool is_stopped();
     void stop();
-    void add(subscription);
-    void remove(subscription);
+    void insert(subscription);
+    void erase(subscription);
+    void insert(stopper);
 };
 
 template<class V>
@@ -63,7 +65,7 @@ struct subscription
         return store->stopped;
     }
     /// \brief 
-    void add(const subscription& s) {
+    void insert(const subscription& s) {
         if (s == *this) {std::abort();}
         store->others.insert(s);
         if (store->stopped) stop();
@@ -72,7 +74,7 @@ struct subscription
         if (s == *this) {std::abort();}
         store->others.erase(s);
     }
-    void add(function<void()> stopper) {
+    void insert(function<void()> stopper) {
         store->stoppers.emplace_front(stopper);
         if (store->stopped) stop();
     }
