@@ -475,7 +475,7 @@ __output__ (emscripten)
 ---
 
 function: designlast
-arguments: 0, 9
+arguments: 0, 9, 42
 output: designlastoutput
 
 ## push sequence
@@ -500,6 +500,41 @@ __output__ (emscripten)
 
 .emscripten-output[
  <div id="designlastoutput"/>
+]
+
+]
+
+]
+
+???
+---
+
+function: designtake
+arguments: 0, 9, 3
+output: designtakeoutput
+
+## push sequence
+
+.split-60[
+.column[
+
+__code__
+
+```cpp
+ints(0, 9) | 
+  copy_if(even) | 
+  take(3) | 
+  printto(cout);
+```
+
+]
+
+.column[
+
+__output__ (emscripten)
+
+.emscripten-output[
+ <div id="designtakeoutput"/>
 ]
 
 ]
@@ -1291,10 +1326,14 @@ async sources distribute values in time
         // $$`
 
         var calls = {
+            "designtake": Module.cwrap(
+                'designtake', // C function
+                null, // return type
+                ['number', 'number', 'number']), // argument types
             "designlast": Module.cwrap(
                 'designlast', // C function
                 null, // return type
-                ['number', 'number']), // argument types
+                ['number', 'number', 'number']), // argument types
             "designoperator": Module.cwrap(
                 'designoperator', // C function
                 null, // return type
