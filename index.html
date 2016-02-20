@@ -442,22 +442,28 @@ auto even = [](auto v){return (v % 2) == 0;};
 .column[
 ####push sequence concepts
 ```cpp
-template<class Receiver>
 struct sender
 {
-    void operator()(Receiver r);
+    template<class Receiver>
+    void operator()(Receiver);
 };
 
-template<class ReceiverV>
 struct algorithm
 {
-    ReceiverU operator()(ReceiverV r);
+    template<class SenderV>
+    SenderV operator()(SenderV);
 };
 
-template<class V>
+struct liftee
+{
+    template<class ReceiverV>
+    ReceiverU operator()(ReceiverV);
+};
+
 struct receiver
 {
-    void operator()(V v);
+    template<class V>
+    void operator()(V);
 };
 ```
 
@@ -569,10 +575,10 @@ const auto last_or_default = [](auto def){
 .column[
 ####push sequence concepts
 ```cpp
-template<class V>
 struct receiver
 {
-  void operator()(V v);
+  template<class V>
+  void operator()(V);
   `void operator()();`
 };
 ```
@@ -665,11 +671,11 @@ struct subscription
     make_state(ArgN... argn);
 };
 
-template<class V>
 struct receiver
 {
-  subscription lifetime;
-  void operator()(V v);
+  `subscription lifetime;`
+  template<class V>
+  void operator()(V);
   void operator()();
 };
 ```
@@ -739,12 +745,31 @@ __flow__ construct from source to dest, subscribe from dest to source, run and c
 
 ---
 
+## what needs to change to support failure?
+
+???
+--
+
+```cpp
+struct receiver
+{
+  subscription lifetime;
+  template<class V>
+  void operator()(V);
+  `void operator()(exception_ptr);`
+  void operator()();
+};
+```
+
+???
+---
+
 function: designerror
 types: number,number,number
 arguments: 0, 9, 3
 output: designerroroutput
 
-## push sequence
+## what needs to change to support failure?
 
 .split-60[
 .column[

@@ -376,20 +376,74 @@ auto make_receiver(Dest d, state<Payload> s, Next n = Next{}, Error e = Error{},
     return receiver<std::decay_t<Dest>, state<Payload>, std::decay_t<Next>, std::decay_t<Error>, std::decay_t<Complete>>{d, s, n, e, c, d.lifetime};
 }
 
+template<class Subscribe>
+struct sender
+{
+    Subscribe subscribe;
+    template<class Dest>
+    subscription operator()(Dest&& dest) const {
+        return subscribe(std::forward<Dest>(dest));
+    }
+};
+
+template<class T>
+struct sender_check : public false_type {};
+
+template<class Subscribe>
+struct sender_check<sender<Subscribe>> : public true_type {};
+
+template<class T>
+using for_sender = enable_if_t<sender_check<std::decay_t<T>>::value>;
+
+template<class T>
+using not_sender = enable_if_t<!sender_check<std::decay_t<T>>::value>;
+
+template<class Subscribe, class CheckS = not_sender<Subscribe>>
+auto make_sender(Subscribe s) {
+    return sender<std::decay_t<Subscribe>>{s};
+}
+
+template<class Lift>
+struct liftee
+{
+    Lift lift;
+    template<class Dest>
+    auto operator()(Dest&& dest) const {
+        return lift(std::forward<Dest>(dest));
+    }
+};
+
+template<class T>
+struct liftee_check : public false_type {};
+
+template<class Lift>
+struct liftee_check<liftee<Lift>> : public true_type {};
+
+template<class T>
+using for_liftee = enable_if_t<liftee_check<std::decay_t<T>>::value>;
+
+template<class T>
+using not_liftee = enable_if_t<!liftee_check<std::decay_t<T>>::value>;
+
+template<class Lift, class CheckS = not_liftee<Lift>>
+auto make_liftee(Lift l) {
+    return liftee<std::decay_t<Lift>>{l};
+}
+
 const auto ints = [](auto first, auto last){
     cout << "new ints" << endl;
-    return [=](auto dest){
+    return make_sender([=](auto dest){
         cout << "ints bound to dest" << endl;
         for(auto i = first;i != last; ++i){
             dest(i);
         }
         dest();
         return dest.lifetime;
-    };
+    });
 };
 const auto async_ints = [](auto first, auto last){
     cout << "new async_ints" << endl;
-    return [=](auto dest){
+    return make_sender([=](auto dest){
         cout << "async_ints bound to dest" << endl;
         auto store = dest.lifetime.template make_state<std::decay_t<decltype(first)>>(first);
         auto sched = jsthread.create_coordinator().get_scheduler().create_worker();
@@ -397,10 +451,10 @@ const auto async_ints = [](auto first, auto last){
             if (dest.lifetime.is_stopped()) {return;}
             auto& current = store.get();
             if (current == last) {
-                dest(); 
-                return;
+                dest(current); 
+            } else {
+                dest(current++);
             }
-            dest(current++);
             if (current != last) {
                 sb.schedule();
                 return;
@@ -409,20 +463,20 @@ const auto async_ints = [](auto first, auto last){
         };
         sched.schedule(tick);
         return dest.lifetime;
-    };
+    });
 };
 const auto copy_if = [](auto pred){
     cout << "new copy_if" << endl;
-    return [=](auto dest){
+    return make_liftee([=](auto dest){
         cout << "copy_if bound to dest" << endl;
         return make_receiver(dest, [=](auto& d, auto v){
             if (pred(v)) d(v);
         });
-    };
+    });
 };
 const auto last_or_default = [](auto def){
         cout << "new last_or_default" << endl;
-    return [=](auto dest){
+    return make_liftee([=](auto dest){
         cout << "last_or_default bound to dest" << endl;
         auto last = dest.lifetime.template make_state<std::decay_t<decltype(def)>>(def);
         return make_receiver(dest, last, 
@@ -436,21 +490,23 @@ const auto last_or_default = [](auto def){
                 d(l);
                 d();
             });
-    };
+    });
 };
 const auto take = [](int n){
     cout << "new take" << endl;
-    return [=](auto dest){
-        cout << "take bound to dest" << endl;
-        auto remaining = dest.lifetime.template make_state<int>(n);
-        return make_receiver(dest, remaining, 
-            [](auto& d, auto& r, auto v){
-                if (r-- == 0) {
-                    d();
-                    return;
-                }
-                d(v);
-            });
+    return [=](auto source){
+        return make_sender([=](auto dest){
+            cout << "take bound to dest" << endl;
+            auto remaining = dest.lifetime.template make_state<int>(n);
+            return source(make_receiver(dest, remaining, 
+                [](auto& d, auto& r, auto v){
+                    if (r-- == 0) {
+                        d();
+                        return;
+                    }
+                    d(v);
+                }));
+        });
     };
 };
 
@@ -473,16 +529,151 @@ const auto printto = [](auto& output){
         });
 };
 
-template<class SenderV, class SenderU, class CheckS = not_receiver<SenderU>>
-auto operator|(SenderV sv, SenderU su){
-    return [=](auto dest){
-        return sv(su(dest));
+/// \brief chain operator overload for
+/// subscription = sender | receiver
+/// \param sender
+/// \param receiver
+/// \returns subscription
+template<class SenderV, class ReceiverV, 
+    class CheckS = for_sender<SenderV>, 
+    class CheckR = for_receiver<ReceiverV>>
+subscription operator|(SenderV sv, ReceiverV rv) {
+    return sv(rv);
+}
+
+/// \brief chain operator overload for
+/// sender = sender | liftee
+/// \param sender
+/// \param liftee
+/// \returns sender
+template<class Sender, class Liftee, 
+    class CheckS = for_sender<Sender>, 
+    class CheckL = for_liftee<Liftee>, 
+    class _5 = void>
+auto operator|(Sender s, Liftee l) {
+    return make_sender([=](auto dest){
+        return s(l(dest));
+    });
+}
+
+/// \brief chain operator overload for
+/// receiver = liftee | receiver
+/// \param liftee
+/// \param receiver
+/// \returns receiver
+template<class Liftee, class Receiver, 
+    class CheckL = for_liftee<Liftee>, 
+    class CheckR = for_receiver<Receiver>, 
+    class _5 = void, 
+    class _6 = void>
+auto operator|(Liftee l, Receiver r) {
+    return l(r);
+}
+
+/// \brief chain operator overload for
+/// liftee = liftee | liftee
+/// \param liftee
+/// \param liftee
+/// \returns liftee
+template<class LifteeL, class LifteeR, 
+    class CheckL = for_liftee<LifteeL>, 
+    class CheckR = for_liftee<LifteeR>,
+    class _5 = void, 
+    class _6 = void, 
+    class _7 = void>
+auto operator|(LifteeL ll, LifteeR lr){
+    return make_liftee([=](auto dest){
+        return ll(lr(dest));
+    });
+}
+
+/// \brief chain operator overload for both
+/// sender = sender | algorithm
+/// and
+/// subscription = sender | subscriber
+/// \param sender
+/// \param algorithm
+/// \param subscriber
+/// \returns sender
+/// \returns subscription
+template<class SenderV, class Algorithm, 
+    class CheckV = for_sender<SenderV>, 
+    class CheckS = not_sender<Algorithm>, 
+    class CheckL = not_liftee<Algorithm>, 
+    class CheckR = not_receiver<Algorithm>,
+    class _7 = void, 
+    class _8 = void>
+auto operator|(SenderV sv, Algorithm al){
+    return al(sv);
+}
+
+/// \brief chain operator overload for
+/// subscriber = liftee | algorithm
+/// \param liftee
+/// \param algorithm
+/// \returns subscriber
+template<class Liftee, class Algorithm, 
+    class CheckL = for_liftee<Liftee>, 
+    class CheckAS = not_sender<Algorithm>, 
+    class CheckAL = not_liftee<Algorithm>, 
+    class CheckAR = not_receiver<Algorithm>,
+    class _7 = void, 
+    class _8 = void, 
+    class _9 = void>
+auto operator|(Liftee l, Algorithm al){
+    return [=](auto source){
+        return make_sender([=](auto dest){
+            return al(source)(l(dest));
+        });
     };
 }
 
-template<class SenderV, class ReceiverV, class CheckS = not_receiver<SenderV>, class CheckR = for_receiver<ReceiverV>>
-auto operator|(SenderV sv, ReceiverV rv) {
-    return sv(rv);
+/// \brief chain operator overload for
+/// receiver = algorithm | receiver
+/// \param algorithm
+/// \param receiver
+/// \returns receiver
+template<class Algorithm, class Receiver, 
+    class CheckAS = not_sender<Algorithm>, 
+    class CheckAL = not_liftee<Algorithm>, 
+    class CheckAR = not_receiver<Algorithm>,
+    class CheckL = for_receiver<Receiver>, 
+    class _7 = void, 
+    class _8 = void, 
+    class _9 = void, 
+    class _10 = void>
+auto operator|(Algorithm al, Receiver r){
+    return [=](auto source){
+        return al(source)(r);
+    };
+}
+
+void testoperator(){
+    {
+        // sender = sender | liftee
+    auto even$ = ints(0, 1) | copy_if(even);
+        // subscription = sender | receiver
+    subscription lifetime = even$ | printto(cout);
+    }
+    {
+        // liftee = liftee | liftee
+    auto lasteven = copy_if(even) | last_or_default(42);
+        // receiver = liftee | receiver
+    auto printlasteven = lasteven | printto(cout);
+        // subscription = sender | receiver
+    auto lifetime = ints(0, 1) | printlasteven;
+    }
+
+    {
+        // algorithm = liftee | algorithm
+    auto take3even = copy_if(even) | take(3);
+        // subscriber = algorithm | receiver
+    auto print3even = take3even | printto(cout);
+        // sender = sender | algorithm
+    auto source = async_ints(0, 1) | take(3);
+        // subscription = sender | subscriber
+    auto lifetime = source | print3even;
+    }
 }
 
 }
@@ -494,7 +685,7 @@ extern"C" {
 void designlast(int first, int last, int def){
     using namespace designcontractdef;
     auto lifetime = ints(first, last) | designcontractdef::copy_if(even) | last_or_default(def) | printto(cout);
-    lifetime.add([](){cout << "stopped" << endl;});
+    lifetime.insert([](){cout << "stopped" << endl;});
     lifetime.template make_state<destruction>();
 }
 
@@ -505,7 +696,7 @@ extern"C" {
 void designtake(int first, int last, int count){
     using namespace designcontractdef;
     auto lifetime = async_ints(first, last) | designcontractdef::copy_if(even) | take(count) | printto(cout);
-    lifetime.add([](){cout << "stopped" << endl;});
+    lifetime.insert([](){cout << "stopped" << endl;});
     lifetime.template make_state<destruction>();
 }
 
@@ -516,6 +707,6 @@ extern"C" {
 void designerror(int first, int last, int count){
     using namespace designcontractdef;
     auto lifetime = async_ints(first, last) | designcontractdef::copy_if(always_throw) | take(count) | printto(cout);
-    lifetime.add([](){cout << "stopped" << endl;});
+    lifetime.insert([](){cout << "stopped" << endl;});
     lifetime.template make_state<destruction>();
 }
