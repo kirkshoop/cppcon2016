@@ -79,6 +79,11 @@ std::ostream& to_stream(std::ostream& os, const T&, ...) {
 
 template<class T>
 inline std::ostream& operator<< (std::ostream& os, const std::vector<T>& v) {
+    return ostreamvector(os, v);
+}
+
+template<class T>
+inline std::ostream& ostreamvector (std::ostream& os, const std::vector<T>& v) {
     os << "[";
     bool emit = false;
     for(auto& i : v) {
@@ -275,6 +280,14 @@ std::ostream& operator<< (std::ostream& out, const recorded<T>& r) {
 }
 namespace rxn=notifications;
 
+}
+
+inline std::ostream& operator<< (std::ostream& out, const std::vector<rxcpp::notifications::subscription>& vs) {
+    return rxcpp::notifications::detail::ostreamvector(out, vs);
+}
+template<class T>
+inline std::ostream& operator<< (std::ostream& out, const std::vector<rxcpp::notifications::recorded<T>>& vr) {
+    return rxcpp::notifications::detail::ostreamvector(out, vr);
 }
 
 #endif
