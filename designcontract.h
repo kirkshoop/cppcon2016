@@ -2,38 +2,6 @@
 
 namespace designcontractdef 
 {
-/*
-struct subscription
-{
-    using stopper = function<void()>;
-    bool is_stopped();
-    void stop();
-    void insert(subscription);
-    void erase(subscription);
-    void insert(stopper);
-};
-
-template<class V>
-struct receiver
-{
-    subscription lifetime;
-    void operator()(V v);
-    void operator()(exception_ptr);
-    void operator()();
-};
-
-template<class ReceiverV>
-struct algorithm
-{
-    ReceiverU operator()(ReceiverV dest);
-};
-
-template<class Receiver>
-struct sender
-{
-    subscription operator()(Receiver dest);
-};
-*/
 
 template<class Payload = void>
 struct state
@@ -58,28 +26,58 @@ struct state<void>
 ///
 struct subscription
 {
+private:
+    struct shared
+    {
+        ~shared(){
+            auto expired = std::move(destructors);
+            for (auto& d : expired) {
+                d();
+            }
+        }
+        shared() : stopped(false) {cout << "new lifetime" << endl;}
+        bool stopped;
+        set<subscription> others;
+        deque<function<void()>> stoppers;
+        deque<function<void()>> destructors;
+    };
+public:
     subscription() : store(make_shared<shared>()) {}
+    explicit subscription(shared_ptr<shared> o) : store(o) {}
     /// \brief used to exit loops or otherwise stop work scoped to this subscription.
     /// \returns bool - if true do not access any state objects.
     bool is_stopped() const {
         return store->stopped;
     }
     /// \brief 
-    void insert(const subscription& s) {
+    void insert(const subscription& s) const {
         if (s == *this) {std::abort();}
+        // nest
         store->others.insert(s);
+        // unnest when child is stopped
+        weak_ptr<shared> p = store;
+        weak_ptr<shared> c = s.store;
+        s.insert([p, c](){
+            auto storep = p.lock();
+            auto storec = c.lock();
+            if (storep && storec) {
+                auto that = subscription(storep);
+                auto s = subscription(storec);
+                that.erase(s);
+            }
+        });
         if (store->stopped) stop();
     }
-    void erase(const subscription& s) {
+    void erase(const subscription& s) const {
         if (s == *this) {std::abort();}
         store->others.erase(s);
     }
-    void insert(function<void()> stopper) {
+    void insert(function<void()> stopper) const {
         store->stoppers.emplace_front(stopper);
         if (store->stopped) stop();
     }
     template<class Payload, class... ArgN>
-    state<Payload> make_state(ArgN... argn) {
+    state<Payload> make_state(ArgN... argn) const {
         auto p = make_unique<Payload>(argn...);
         auto result = state<Payload>{p.get()};
         store->destructors.emplace_front(
@@ -106,20 +104,6 @@ struct subscription
         }
     }
 private:
-    struct shared
-    {
-        ~shared(){
-            auto expired = std::move(destructors);
-            for (auto& d : expired) {
-                d();
-            }
-        }
-        shared() : stopped(false) {cout << "new lifetime" << endl;}
-        bool stopped;
-        set<subscription> others;
-        deque<function<void()>> stoppers;
-        deque<function<void()>> destructors;
-    };
     shared_ptr<shared> store;
     friend bool operator==(const subscription&, const subscription&);
     friend bool operator<(const subscription&, const subscription&);
@@ -434,7 +418,7 @@ const auto ints = [](auto first, auto last){
     cout << "new ints" << endl;
     return make_sender([=](auto dest){
         cout << "ints bound to dest" << endl;
-        for(auto i = first;i != last; ++i){
+        for(auto i = first;i != last && !dest.lifetime.is_stopped(); ++i){
             dest(i);
         }
         dest();
