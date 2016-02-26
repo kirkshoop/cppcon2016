@@ -180,11 +180,11 @@ down$ |
       start_with(0) |
       sum();
   }) |
-  subscribe( 
+  map( 
     [](int c){
-      cout << c << " moves while mouse down" << endl;
-    },
-    [](exception_ptr ep){cout << what(ep) << endl;}));
+      return to_string(c) + " moves while mouse down";
+    }) |
+  subscribe(println(cout));
 ```
 
 ]
@@ -261,6 +261,26 @@ __output__ (emscripten)
 > in the JS world scan to a model is an implementation of the flux concept.
 
 httpGet wraps XmlHttpRequest access provided by emscripten.
+---
+class: middle
+<rx-marbles key="combineLatest"/>
+???
+combine stores the most recent value from each input
+
+when an input arrives, the function is called.
+
+the function result is emitted.
+---
+class: middle
+<rx-marbles key="scan"/>
+???
+scan holds x as state.
+
+the function is called when a value arrives.
+
+x is assigned the result of the function.
+
+the result of the function is emitted.
 ---
 name: whyalgo
 
@@ -1165,9 +1185,13 @@ circleFollowsMouse(Behavior<Point2D> mousePos) {
   return map(circleAt, mousePos);
 }
 ```
+???
 ---
-style: middle
-##completed
+##complete.
+questions?
+
+<rx-marbles key="merge"/>
+
 ???
 ---
 name: rangev3
