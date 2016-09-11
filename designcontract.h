@@ -662,33 +662,21 @@ void testoperator(){
 
 }
 
-extern"C" {
-    void designlast(int, int, int);
-}
-
-void designlast(int first, int last, int def){
+extern"C" void EMSCRIPTEN_KEEPALIVE designlast(int first, int last, int def){
     using namespace designcontractdef;
     auto lifetime = ints(first, last) | designcontractdef::copy_if(even) | last_or_default(def) | printto(cout);
     lifetime.insert([](){cout << "stopped" << endl;});
     lifetime.template make_state<destruction>();
 }
 
-extern"C" {
-    void designtake(int, int, int);
-}
-
-void designtake(int first, int last, int count){
+extern"C" void EMSCRIPTEN_KEEPALIVE designtake(int first, int last, int count){
     using namespace designcontractdef;
     auto lifetime = async_ints(first, last) | designcontractdef::copy_if(even) | take(count) | printto(cout);
     lifetime.insert([](){cout << "stopped" << endl;});
     lifetime.template make_state<destruction>();
 }
 
-extern"C" {
-    void designerror(int, int, int);
-}
-
-void designerror(int first, int last, int count){
+extern"C" void EMSCRIPTEN_KEEPALIVE designerror(int first, int last, int count){
     using namespace designcontractdef;
     auto lifetime = async_ints(first, last) | designcontractdef::copy_if(always_throw) | take(count) | printto(cout);
     lifetime.insert([](){cout << "stopped" << endl;});

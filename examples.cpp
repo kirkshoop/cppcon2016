@@ -1,7 +1,7 @@
 
 // source ~/source/emsdk_portable/emsdk_env.sh
 
-// em++ -std=c++14 --memory-init-file 0 -s ASSERTIONS=2 -s DEMANGLE_SUPPORT=1 -s DISABLE_EXCEPTION_CATCHING=0 -s EXPORTED_FUNCTIONS="['_main', '_reset', '_rxlinesfrombytes', '_rxmousedrags', '_rxhttp', '_designpush', '_designoperator', '_designlast', '_designtake', '_designerror', '_rxdelay', '_rxtestdelay']" -O2 examples.cpp -o examples.js
+// em++ -std=c++14 --memory-init-file 0 -s ASSERTIONS=2 -s DEMANGLE_SUPPORT=1 -s DISABLE_EXCEPTION_CATCHING=0 -O2 -g4 examples.cpp -o examples.js
 
 #include "emscripten.h"
 #include <emscripten/html5.h>
@@ -46,7 +46,7 @@ struct destruction
 #include "designcontract.h"
 //#include "designtime.h"
 
-int main() {
+extern"C" int EMSCRIPTEN_KEEPALIVE main() {
     emscripten_set_main_loop(tick, -1, false);
     return 0;
 }

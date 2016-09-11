@@ -18,15 +18,12 @@ void tick(){
 
 composite_subscription lifetime;
 
-extern"C" {
-    void reset();
-}
-
-void reset() {
+extern"C" void EMSCRIPTEN_KEEPALIVE reset() {
     lifetime.unsubscribe();
     lifetime = composite_subscription();
 }
 
+#ifdef EMSCRIPTEN_RESULT
 struct MouseEvent 
 {
     long x;
@@ -101,3 +98,4 @@ const auto mousemove$ = [](const char* targetId){
         return result;
     });
 };
+#endif

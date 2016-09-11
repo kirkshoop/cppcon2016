@@ -1,10 +1,6 @@
 #pragma once
 
-extern"C" {
-    void rxmousedrags();
-}
-
-void rxmousedrags()
+extern"C" void EMSCRIPTEN_KEEPALIVE rxmousedrags()
 {
     auto down$ = mousedown$("#window").publish().connect_forever();
     auto up$ = mouseup$("#window").publish().connect_forever();

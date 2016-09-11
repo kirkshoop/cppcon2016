@@ -36,7 +36,7 @@ struct response_t
 };
 struct http_status_exception : public exception
 {
-    http_status_exception(int code, const char* m) : code(code), message(m) {}
+    http_status_exception(int code, const char* m) : code(code), message(!!m ? m : "") {}
     int code;
     string message;
     const char* what() const noexcept {return message.c_str();}
@@ -58,7 +58,7 @@ observable<response_t> httpGet(const char* urlArg)
             "GET",
             "",
             response.state.get(),
-            true, // the buffer is freed when unload returns
+            true, // the buffer is freed when onload returns
             [](unsigned, void* vp, void* d, unsigned s){
                 auto state = reinterpret_cast<response_t::state_t*>(vp);
                 
@@ -103,9 +103,10 @@ struct model {
 };
 std::ostream& operator<< (std::ostream& out, const model& m) {
     for (auto i : m.store) {
-        auto url = i.first;
+        size_t lastslash = i.first.find_last_of("/");
+        auto file = lastslash == std::string::npos ? i.first : i.first.substr(lastslash + 1, i.first.size() - lastslash - 1);
         auto d = i.second;
-        out << url << ", " << d.size;
+        out << file << ", " << d.size;
         if (!d.line.empty()) {
             out << endl << d.line;
         }
@@ -113,13 +114,10 @@ std::ostream& operator<< (std::ostream& out, const model& m) {
     return out;
 }
 
-extern"C" {
-    void rxhttp(const char*);
-}
 
-void rxhttp(const char* url){
+extern"C" void EMSCRIPTEN_KEEPALIVE rxhttp(const char* url, int linelimit){
     httpGet(url).
-        map([](response_t response){
+        map([=](response_t response){
             return response.
                 progress().
                 start_with(progress_t{0,0}).
@@ -130,10 +128,11 @@ void rxhttp(const char* url){
                     response.load().start_with(vector<uint8_t>{})).
                 scan(
                     model{}, 
-                    [](model m, tuple<string, progress_t, vector<uint8_t>> u){
+                    [=](model m, tuple<string, progress_t, vector<uint8_t>> u){
                         apply(u, [&](string url, progress_t p, vector<uint8_t> d) {
                             auto& data = m.store[url];
                             data.line.assign(d.begin(), find(d.begin(), d.end(), '\n'));
+                            data.line.resize(std::min(data.line.size(), unsigned(linelimit)));
                             data.size = max(p.bytesLoaded, int(d.size()));
                         });
                         return m;
@@ -143,5 +142,11 @@ void rxhttp(const char* url){
         subscribe(
             lifetime,
             println(cout), 
-            [](exception_ptr ep){cout << endl << "error: " << http_status_exception::from(ep).code << endl;});
+            [=](exception_ptr ep){
+                auto ex = http_status_exception::from(ep);
+                ex.message.resize(std::min(ex.message.size(), unsigned(linelimit)));
+                cout << endl 
+                    << "error: " << ex.code << endl 
+                    << ex.message << endl;
+            });
 }

@@ -63,11 +63,7 @@ observable<vector<uint8_t>> readAsyncBytes(int stepms, int count, int windowSize
         }).switch_on_next());
 }
 
-extern"C" {
-    void rxlinesfrombytes(int, int, int);
-}
-
-void rxlinesfrombytes(int stepms, int count, int windowSize)
+extern"C" void EMSCRIPTEN_KEEPALIVE rxlinesfrombytes(int stepms, int count, int windowSize)
 {
     // create strings split on \r
     auto strings = readAsyncBytes(stepms, count, windowSize).

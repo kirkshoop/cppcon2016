@@ -172,6 +172,12 @@ inline auto delay(Duration period, Coordination coordination)
     return  detail::delay_factory<Duration, Coordination>(period, coordination);
 }
 
+template<class Duration>
+inline auto delay(Duration period)
+    ->      detail::delay_factory<Duration, identity_one_worker> {
+    return  detail::delay_factory<Duration, identity_one_worker>(period, identity_current_thread());
+}
+
 }
 
 }

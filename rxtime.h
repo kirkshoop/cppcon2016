@@ -1,10 +1,6 @@
 #pragma once
 
-extern"C" {
-    void rxdelay(int period, int wait, int count);
-}
-
-void rxdelay(int period, int wait, int count)
+extern"C" void EMSCRIPTEN_KEEPALIVE rxdelay(int period, int wait, int count)
 {
     using namespace rxcpp::operators;
     using namespace std::chrono;
@@ -42,11 +38,7 @@ void rxdelay(int period, int wait, int count)
                 [](exception_ptr ep){cout << what(ep) << endl;}));
 }
 
-extern"C" {
-    void rxtestdelay(int period, int wait);
-}
-
-void rxtestdelay(int period, int wait)
+extern"C" void EMSCRIPTEN_KEEPALIVE rxtestdelay(int period, int wait)
 {
     using namespace rxcpp::operators;
     using namespace std::chrono;

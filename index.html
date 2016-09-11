@@ -116,6 +116,164 @@ have you watched __eric neibler's__ _calendar printer_ talk using range-v3?
 
 ---
 
+module: Context
+function: intervalsv3
+types: 
+arguments: 
+output: rxv3output
+
+# ints distributed in time
+.split-60[
+.column[
+
+__code__ (rxcppv3)
+
+```cpp
+auto threeeven = copy_if(even) | 
+  take(3) |
+  `delay`(makeStrand, 1s);
+
+intervals(makeStrand, steady_clock::now(), 1s) | 
+  threeeven |
+  as_interface<long>() |
+  finally([](){cout << "caller stopped" << endl;}) |
+  printto(cout) |
+  start<destruction>(subscription{}, destruction{});
+```
+
+]
+
+.column[
+
+__output__ (emscripten)
+
+.emscripten-output[
+ <div id="rxv3output"/>
+]
+
+]
+
+]
+
+???
+---
+## delay
+<rx-marbles key="delay"/>
+???
+> needs to schedule a function for later
+---
+
+# handling ux events
+__code__ (coroutine algorithms)
+
+```cpp
+std::future<void> AddVisuals(CoreWindow window, VisualCollection visuals) 
+{
+  for co_await (auto move : window.co_PointerPressed() |
+    transform([](auto press) -> float2 {return press.args.CurrentPoint().Position(); }) |
+    `filter`([](auto point) {return !VisualAndOffsetFromPoint(visuals, point).first; })) 
+  {
+    AddVisual(visuals, point);
+  }
+}
+```
+
+???
+---
+## copy_if
+<rx-marbles key="filter"/>
+???
+> needs to selectively pass to the next handler
+---
+
+# handling ux events
+__code__ (coroutine algorithms)
+
+```cpp
+std::future<void> MoveVisuals(CoreWindow window, VisualCollection visuals) {
+  for co_await (auto move : `window.co_PointerPressed()` |
+    transform([](auto press) -> float2 {return press.args.CurrentPoint().Position(); }) |
+    transform([=](auto point) {return VisualAndOffsetFromPoint(visuals, point); }) |
+    filter([](auto selected) {return !!selected.first; }) |
+    transform([=](auto selected) {
+      MoveToTop(visuals, selected.first);
+      return `window.co_PointerMoved()` |
+        transform([](auto move) -> float2 {return move.args.CurrentPoint().Position(); }) |
+        transform([=](auto point) {
+          auto to = float2{ point.x + selected.second.x, point.y + selected.second.y };
+          return std::make_pair(selected.first, to);
+        }) |
+        take_until(`window.co_PointerReleased()`);
+    }) |
+    `merge`()) {
+    move.first.Offset({ move.second.x, move.second.y, 0.0f });
+  }
+}
+
+```
+
+???
+---
+## merge
+<rx-marbles key="merge"/>
+???
+> needs to merge values from multiple sources
+---
+
+function: rxmousedrags
+output: rxmousedragsoutput
+
+# moves while mouse button down
+.split-60[
+.column[
+
+__code__ (rxcpp)
+
+```cpp
+auto down$ = mousedown$("#window");
+auto up$ = mouseup$("#window");
+auto move$ = mousemove$("#window");
+
+down$ |
+  flat_map([=](MouseEvent){
+    return move$ |
+      `take_until`(up$) |
+      map([](MouseEvent){return 1;}) |
+      start_with(0) |
+      sum();
+  }) |
+  map( 
+    [](int c){
+      return to_string(c) + " moves while mouse down";
+    }) |
+  subscribe(println(cout));
+```
+
+]
+
+.column[
+
+__output__ (emscripten)
+
+.emscripten-output[
+ <div id="rxmousedragsoutput"/>
+]
+
+]
+
+]
+
+???
+> * on each mouse up, print the number of mouse moves since mouse down.
+> * shows how you can adapt existing sequences to async algorithms
+> * the mouse event functions wrap HTML DOM addeventlistener access provided by emscripten.
+---
+## take_until
+<rx-marbles key="takeUntil"/>
+???
+> needs to stop the source early when the trigger value arrives
+---
+
 function: rxlinesfrombytes
 types: number,number,number
 arguments: 1000, 4, 11
@@ -158,61 +316,9 @@ bytes arrive once a second. as each set of bytes arrives, it is split on `\r`, g
 > * the output is generated live on slide transition by the C++ code compiled by emscripten
 ---
 
-function: rxmousedrags
-output: rxmousedragsoutput
-
-# moves while mouse button down
-.split-60[
-.column[
-
-__code__ (rxcpp)
-
-```cpp
-auto down$ = mousedown$("#window");
-auto up$ = mouseup$("#window");
-auto move$ = mousemove$("#window");
-
-down$ |
-  flat_map([=](MouseEvent){
-    return move$ |
-      take_until(up$) |
-      map([](MouseEvent){return 1;}) |
-      start_with(0) |
-      sum();
-  }) |
-  map( 
-    [](int c){
-      return to_string(c) + " moves while mouse down";
-    }) |
-  subscribe(println(cout));
-```
-
-]
-
-.column[
-
-__output__ (emscripten)
-
-.emscripten-output[
- <div id="rxmousedragsoutput"/>
-]
-
-]
-
-]
-
-???
-on each mouse up, print the number of moue moves since mouse down.
-
-shows how you can adapt existing sequences to async algorithms
-
-the mouse event functions wrap HTML DOM addeventlistener access provided by emscripten.
----
-
 function: rxhttp
-types: string
-arguments: http://localhost:8090/serve.js
-argumentsd: https://raw.githubusercontent.com/Reactive-Extensions/RxCpp/master/AUTHORS.txt
+types: string, number
+arguments: https://raw.githubusercontent.com/Reactive-Extensions/RxCpp/master/README.md, 80
 output: rxhttplocalhostoutput
 
 # bytes from http GET
@@ -227,7 +333,7 @@ struct model {
     map<string, data> store;
 };
 
-httpGet("http://localhost:8090/serve.js") |
+httpGet("https://aka.ms/rxcppreadme") |
   flat_map([](response_t r) {
     return r.progress() |
       `combine_latest`(
@@ -257,30 +363,17 @@ __output__ (emscripten)
 ]
 
 ???
-> a common pattern is to scan into a model. the result is a source of model updates
-> in the JS world scan to a model is an implementation of the flux concept.
-
-httpGet wraps XmlHttpRequest access provided by emscripten.
+> * a common pattern is to scan into a model. the result is a source of model updates
+> * in the JS world, scan to a model is an implementation of the `flux` concept.
+> * httpGet wraps `XmlHttpRequest` access provided by emscripten.
 ---
-class: middle
-<rx-marbles key="combineLatest"/>
-???
-combine stores the most recent value from each input
-
-when an input arrives, the function is called.
-
-the function result is emitted.
----
-class: middle
+## scan
 <rx-marbles key="scan"/>
 ???
-scan holds x as state.
-
-the function is called when a value arrives.
-
-x is assigned the result of the function.
-
-the result of the function is emitted.
+> * scan holds x as state.
+> * the function is called when a value arrives.
+> * x is assigned the result of the function.
+> * the result of the function is emitted.
 ---
 name: whyalgo
 
@@ -373,7 +466,7 @@ template: sequences
 
 ```cpp
 auto window::mouseMoves()
-    -> async_generator<tuple<int, int>> {
+    -> co_generator<tuple<int, int>> {
     for co_await(auto event : events()) {
         if (event.id == MOUSEMOVE) {
             co_yield mousePositionFrom(event);
@@ -382,7 +475,7 @@ auto window::mouseMoves()
 }
 
 auto socket::bytes()
-    -> async_generator<vector<byte>> {
+    -> co_generator<vector<byte>> {
     vector<byte> out;
     while (out = co_await read(. . .)) {
         co_yield out;
@@ -400,91 +493,79 @@ values distributed in time
 
 ---
 
-#what are the design options?
-
-* ## .green[__abstract__] the sequence or algorithm?
-* ## .green[__flow__] control using push or pull?
-* ## .green[__cancel__] by ommission or trigger?
-* ## .green[__chain__] algorithms using operator| or function nesting?
-
+## what algorithms will help define the concepts?
 ???
-the shape is largly derived from a set choices about the __surface__ and __behavior__
-* __sequence__ iterators, Range | __algorithm__ accumulator step function 
-* __pull__ iterators, Enumerator | __push__ Callback, Observer
-* __omission__ stop pulling | __trigger__ race between setting and checking a flag
-* __operator chaining__ range-v3 | __function nesting__ transducer
+---
+## copy_if
+<rx-marbles key="filter"/>
+???
+> needs to selectively pass to the next handler
+---
+## last_or_default
+<rx-marbles key="last"/>
+???
+> needs to know when the source is complete
+---
+## take
+<rx-marbles key="take"/>
+???
+> take needs to be able to stop the source early.
+---
+## delay
+<rx-marbles key="delay"/>
+???
+> needs to schedule a function to be called later
+---
+## resume_error
+![rx catch marble diagram](content/marbles-catch.png)
+???
+> needs to handle errors by switching to a different source
 ---
 
-name: design
-
-# what designs allow async algorithms?
-
-__abstract__ | __flow__ | __cancel__ | __chain__
-:----------- | :------- | :--------- | :--------
-sequence     | push     | trigger    | operator
-
+## what features are required to build the desired algorithms?
 ???
-push a sequence through operator-chained algorithms until a trigger or end of sequence.
---
-## what might a toy implementation based on these properties look like?
-???
-use the observer/observable pattern as used in ReactiveExtensions as inspiration.
 ---
 
-.split-60[
+## what is the minimum set of features?
+.split-40[
+.column[
+####sequence concepts
+```cpp
+struct observable {
+    void bind(observer);
+};
+
+struct observer {
+    template<class T>
+    void next(T);
+};
+
+struct lifter {
+    observer lift(observer);
+};
+```
+
+]
+
 .column[
 
-####push sequence implementations
+####sequence implementations
 ```cpp
 const auto ints = [](auto first, auto last){
-    return [=](auto r){
-        for(auto i=first;i <= last; ++i){
-            r(i);
-        }
-    };
+  return make_observable([=](auto r){
+    for(auto i = first;; ++i){
+      r.next(i);
+      if (i == last) break;
+    }
+  });
 };
+
 const auto copy_if = [](auto pred){
-    return [=](auto dest){
-        return [=](auto v){
-            if (pred(v)) dest(v);
-        };
-    };
-};
-const auto printto = [](auto& output){
-    return [&](auto v) {
-        output << v << endl;
-    };
-};
-auto even = [](auto v){return (v % 2) == 0;};
-```
-
-]
-
-.column[
-####push sequence concepts
-```cpp
-struct sender
-{
-    template<class Receiver>
-    void operator()(Receiver);
-};
-
-struct algorithm
-{
-    template<class SenderV>
-    SenderV operator()(SenderV);
-};
-
-struct lifter
-{
-    template<class ReceiverV>
-    ReceiverU operator()(ReceiverV);
-};
-
-struct receiver
-{
-    template<class V>
-    void operator()(V);
+  return make_lifter([=](auto r){
+    return make_observer(r, [=](auto& r, auto v){
+        if (pred(v)) r.next(v);
+    });
+  });
 };
 ```
 
@@ -492,47 +573,18 @@ struct receiver
 ]
 
 ???
+> Minimum 
+> * a .green[source] of values
+> * a .green[handler] for values
+> * algorithms that .green[adapt sources]
+> * algorithms that .green[lift handlers]
 ---
 
-function: designpush
+module: Context
+function: pushv3
 types: number,number
 arguments: 0, 9
-output: designpushoutput
-
-## push sequence
-
-.split-60[
-.column[
-
-__code__
-
-```cpp
-ints(0, 9)(copy_if(even)(printto(cout)));
-```
-
-]
-
-.column[
-
-__output__ (emscripten)
-
-.emscripten-output[
- <div id="designpushoutput"/>
-]
-
-]
-
-]
-
-???
-looks like lisp!
-obviously needs to chain with operator|
----
-
-function: designoperator
-types: number,number
-arguments: 0, 9
-output: designoperatoroutput
+output: pushv3output
 
 ## push sequence
 
@@ -544,7 +596,8 @@ __code__
 ```cpp
 ints(0, 9) | 
   copy_if(even) | 
-  printto(cout);
+  printto(cout) |
+  start<destruction>(subscription{}, destruction{});
 ```
 
 ]
@@ -554,7 +607,7 @@ ints(0, 9) |
 __output__ (emscripten)
 
 .emscripten-output[
- <div id="designoperatoroutput"/>
+ <div id="pushv3output"/>
 ]
 
 ]
@@ -562,46 +615,48 @@ __output__ (emscripten)
 ]
 
 ???
-looks nicer. now improve the contract.
+now improve the contract.
 ---
 ## what needs to change to support last_or_default?
 
 <rx-marbles key="last"/>
 ???
-last neeeds to know when the source is complete
+last needs to know when the source is complete
 ---
 
 .split-60[
 .column[
 
-####push sequence implementations
+####sequence implementations
 ```cpp
 const auto last_or_default = [](auto def){
-  return [=](auto dest){
-     auto l = make_shared<decay_t<decltype(def)>>(def);
-     return make_receiver( 
-       [=](auto v){
-         l = v;
-       },
-       [=](){
-         d(l);
-         `d()`;
-       });
-  };
+  return make_lifter([=](auto scbr){
+    return make_subscriber([=](auto ctx){
+      auto r = scbr.create(ctx);
+      using last_t = std::decay_t<decltype(def)>;
+      auto last = make_state<last_t>(ctx.lifetime, def);
+      return make_observer(r, r.lifetime,
+        [last](auto& , auto v){
+          last.get() = v;
+        },
+        [last](auto& r){
+          r.next(last.get());
+          r.`complete`();
+        });
+    });
+  });
 };
 ```
-
 ]
-
 .column[
-####push sequence concepts
+####sequence concepts
 ```cpp
-struct receiver
-{
-  template<class V>
-  void operator()(V);
-  `void operator()();`
+struct observer {
+    template<class T>
+    void next(T);
+    void `complete`();
 };
+
 ```
 
 ]
@@ -610,10 +665,11 @@ struct receiver
 ???
 ---
 
-function: designlast
+module: Context
+function: lastv3
 types: number,number,number
-arguments: 0, 100000000, 42
-output: designlastoutput
+arguments: 0, 100000, 42
+output: lastv3output
 
 ## what needs to change to support last_or_default?
 
@@ -623,10 +679,11 @@ output: designlastoutput
 __code__
 
 ```cpp
-ints(0, 100000000) | 
+ints(0, 100000) | 
   copy_if(even) | 
-  last_or_default(42) | 
-  printto(cout);
+  last_or_default(42) |
+  printto(cout) |
+  start<destruction>(subscription{}, destruction{});
 ```
 
 ]
@@ -636,7 +693,7 @@ ints(0, 100000000) |
 __output__ (emscripten)
 
 .emscripten-output[
- <div id="designlastoutput"/>
+ <div id="lastv3output"/>
 ]
 
 ]
@@ -644,7 +701,7 @@ __output__ (emscripten)
 ]
 
 ???
-100 million ints are filtered to 50 million even ints and then the last even int is printed.
+1 million ints are filtered to 500 thousand even ints and then the last even int is printed.
 ---
 ## what needs to change to support take?
 
@@ -653,51 +710,67 @@ __output__ (emscripten)
 take needs to be able to stop the source.
 ---
 
-.split-60[
+## what features are needed to support asynchronous lifetime and cancellation?
+
+* ## .green[make_shared<T>] for state
+* ## .green[graph] of nested lifetimes
+* ## .green[signal] for explicit cancellation of lifetime graph
+* ## .green[registration] for cancellation signal
+
+???
+---
+.split-50[
 .column[
-
-####push sequence implementations
-```cpp
-const auto take = [](int n){
-  return [=](auto dest){
-    auto remaining = dest.lifetime.
-      template make_state<int>(n);
-    return make_receiver(dest, remaining, 
-      [](auto& d, auto& r, auto v){
-        if (r-- == 0) {
-          d();
-        }
-        d(v);
-      });
-  };
-};
-```
-
-]
-
-.column[
-####push sequence concepts
+####sequence concepts
 ```cpp
 struct subscription
 {
-    using stopper = function<void()>;
-    bool is_stopped();
-    void stop();
-    void insert(subscription);
-    void erase(subscription);
-    void insert(stopper);
-    template<class Payload, 
-      class... ArgN>
-    state<Payload> 
-    make_state(ArgN... argn);
+  bool is_stopped();
+  void stop(); // `signal`
+
+  // `nested`
+  void insert(const subscription& s);
+  void erase(const subscription& s);
+
+  // `registration`
+  void insert(function<void()> stopper);
+
+  // `make_shared<Payload>`
+  template<class Payload, class... ArgN>
+  state<Payload> make_state(
+    ArgN... argn);
 };
 
-struct receiver
-{
-  `subscription lifetime;`
-  template<class V>
-  void operator()(V);
-  void operator()();
+template<class Payload>
+struct context {
+    subscription lifetime;
+    Payload& get();
+};
+```
+]
+.column[
+####sequence concepts
+```cpp
+struct starter {
+    template<class Payload>
+    subscription start(context<Payload>);
+};
+
+struct subscriber {
+    template<class Payload>
+    observer create(context<Payload>);
+};
+
+struct observable {
+    starter bind(subscriber);
+};
+
+struct lifter {
+    subscriber lift(subscriber);
+};
+
+struct adaptor {
+    observable adapt(observable);
 };
 ```
 
@@ -705,21 +778,51 @@ struct receiver
 ]
 
 ???
-subscription owns the lifetime of a sender/receiver chain.
 
-subscription lifetimes can be nested.
+> * subscription .green[owns] the lifetime of a subscribed expression.
+> * subscription lifetimes can be .green[nested].
+> * .green[stop] will call stop on all nested subscriptions then call all stoppers in the .green[inverse] order they were inserted.
+> * .green[make_state] will allocate heap that is scoped by the subscription lifetime. all the state is destructed when the last copy of the subscription is destructed.
 
-stop will call stop on all nested subscriptions then call all stoppers in the inverse order they were inserted.
-
-make_state will allocate heap that is scoped by the subscription lifetime. all the state is destructed when the last copy of the subscription is destructed.
-
-take shows expanded make_receiver that can keep track of state, pass through calls to the dest by default and connect the lifetimes.
 ---
 
-function: designtake
+####push sequence implementations
+```cpp
+const auto take = [](int n){
+  return make_adaptor([=](auto source){
+    return make_observable([=](auto scrb){
+        return source.bind(
+          make_subscriber([=](auto ctx){
+            auto r = scrb.create(ctx);
+            auto remaining = `make_state<int>`(r.lifetime, n);
+            auto lifted = make_observer(r, r.lifetime,
+              [remaining](auto& r, auto v){
+                r.next(v);
+                if (--remaining.get() == 0) {
+                    r.`complete`();
+                }
+              });
+            if (n == 0) {
+              lifted.`complete`();
+            }
+            return lifted;
+          }));
+    });
+  });
+};
+```
+
+???
+> * expanded .green[make_observer], that can pass observer calls through by default and connect the lifetime.
+> * use async state to store the last value.
+> * use complete to stop the lifetime early
+---
+
+module: Context
+function: takev3
 types: number,number,number
 arguments: 0, 9, 3
-output: designtakeoutput
+output: takev3output
 
 ## what needs to change to support take?
 
@@ -729,10 +832,11 @@ output: designtakeoutput
 __code__
 
 ```cpp
-async_ints(0, 9) | 
+ints(0, 9) | 
   copy_if(even) | 
-  take(3) | 
-  printto(cout);
+  take(3) |
+  printto(cout) |
+  start<destruction>(subscription{}, destruction{});
 ```
 
 ]
@@ -742,7 +846,7 @@ async_ints(0, 9) |
 __output__ (emscripten)
 
 .emscripten-output[
- <div id="designtakeoutput"/>
+ <div id="takev3output"/>
 ]
 
 ]
@@ -1461,6 +1565,8 @@ fiveOddInts.subscribe([](int n){. . .});
     </script>
     <script src="./examples.js" type="text/javascript" >
     </script>
+    <script src="./rxcppv3/context.js" type="text/javascript" >
+    </script>
     <!--script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&delayStartupUntil=configured" type="text/javascript" >
     </script-->
     <script src="./MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML&delayStartupUntil=configured" type="text/javascript" >
@@ -1501,22 +1607,27 @@ fiveOddInts.subscribe([](int n){. . .});
         // \end{array}
         // $$`
 
+        var Context = ContextLib();
+
         slideshow.on("showSlide", function(slide) {
             if (!!slide.properties.function){
                 var output = document.getElementById(slide.properties.output);
                 if (output) output.innerHTML = ''; // clear contents
-                Module["print"] = printTo(output);
-                if (!!slide.properties.function) {
-                    Module.ccall(
-                        slide.properties.function, // C function
-                        slide.properties.return || null, // return type
-                        (slide.properties.types || "").split(','), // argument types
-                        (slide.properties.arguments || "").split(',')) // arguments
+                var module = Module;
+                if (!!slide.properties.module) {
+                  module = window[slide.properties.module];
                 }
+                module["print"] = printTo(output);
+                module.ccall(
+                    slide.properties.function, // C function
+                    slide.properties.return || null, // return type
+                    (slide.properties.types || "").split(','), // argument types
+                    (slide.properties.arguments || "").split(',')); // arguments
             }
         });
         slideshow.on("hideSlide", function(slide) {
             Module.ccall('reset', null, [], []);
+            Context.ccall('reset', null, [], []);
         });
     </script>
   </body>

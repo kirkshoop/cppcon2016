@@ -727,11 +727,7 @@ void testoperator(){
 
 }
 
-extern"C" {
-    void designtime(int, int, int);
-}
-
-void designtime(int first, int last, int count){
+extern"C" void EMSCRIPTEN_KEEPALIVE designtime(int first, int last, int count){
     using namespace designtimedef;
     auto takeandprint = take(count) | printto(cout);
     auto lifetime1 = async_ints(first, last) | designtimedef::copy_if(even) | takeandprint;
