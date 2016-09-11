@@ -15,13 +15,18 @@
             padding-bottom: 4em;
         }
         div.footer {
-            bottom: 12px;
             position: absolute;
-            right: 100px;
+            bottom: 12px;
             width: 100%;
             opacity: .6;
         }
-        
+        .footer .flexcontainer {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            margin-right: 175px;
+        }
+
         .border {
             border: 2px solid steelblue;
         }
@@ -92,7 +97,7 @@
     <textarea id="source">
 
 layout: true
-<div class="footer"><span>.right[&copy; 2016 Kirk Shoop ([github](http://github.com/kirkshoop) [twitter](http://twitter.com/kirkshoop))]</span></div>
+<div class="footer"><div class="flexcontainer"><span>.body[[https://kirkshoop.github.io/cppcon2016](https://kirkshoop.github.io/cppcon2016)]</span><span>.center[CppCon 2016]</span><span>.body[&copy; 2016 Kirk Shoop ([github](http://github.com/kirkshoop) [twitter](http://twitter.com/kirkshoop))]</span></div></div>
 
 ---
 
@@ -102,18 +107,25 @@ class: middle
 
 # Adding Async Algorithms to std
 
+#### algorithms for values distributed in time
 ]
 
 <rx-marbles key="debounce"/>
 
 ???
 
-> structure as interview (slide per question) with answer prompts in the notes
+> * structure as interview (slide per question) with answer prompts in the notes
+> * have you watched .green[sean parent]'s _avoid raw loops_ talk?
+> * have you watched .green[eric neibler]'s _calendar printer_ talk using range-v3?
+> * live .green[marble] diagrams
+> * top line is input values in time
+> * bottom line is output values in time
 
-have you watched __sean parent's__ _avoid raw loops_ talk?
+---
 
-have you watched __eric neibler's__ _calendar printer_ talk using range-v3?
+#What are examples of values distributed in time?
 
+???
 ---
 
 module: Context
@@ -156,6 +168,11 @@ __output__ (emscripten)
 ]
 
 ???
+
+> * C++ code is compiled with emscripten and running live in the slides, triggered by slide transitions
+> * rxccpv3 is a poc using C++14
+> * scheduling time with strands
+
 ---
 ## delay
 <rx-marbles key="delay"/>
@@ -163,7 +180,7 @@ __output__ (emscripten)
 > needs to schedule a function for later
 ---
 
-# handling ux events
+# ux events distributed in time
 __code__ (coroutine algorithms)
 
 ```cpp
@@ -179,6 +196,10 @@ std::future<void> AddVisuals(CoreWindow window, VisualCollection visuals)
 ```
 
 ???
+
+> * co_algorithm is a poc using proposed co_await feature
+> * co_PointerPressed is a poc addition to the moderncpp library
+
 ---
 ## copy_if
 <rx-marbles key="filter"/>
@@ -186,7 +207,7 @@ std::future<void> AddVisuals(CoreWindow window, VisualCollection visuals)
 > needs to selectively pass to the next handler
 ---
 
-# handling ux events
+# ux events distributed in time
 __code__ (coroutine algorithms)
 
 ```cpp
@@ -213,6 +234,9 @@ std::future<void> MoveVisuals(CoreWindow window, VisualCollection visuals) {
 ```
 
 ???
+
+> * produces a new sequence of moves for a selected item that starts on each press and stops when released
+
 ---
 ## merge
 <rx-marbles key="merge"/>
@@ -223,7 +247,8 @@ std::future<void> MoveVisuals(CoreWindow window, VisualCollection visuals) {
 function: rxmousedrags
 output: rxmousedragsoutput
 
-# moves while mouse button down
+# ux events distributed in time
+
 .split-60[
 .column[
 
@@ -264,14 +289,18 @@ __output__ (emscripten)
 ]
 
 ???
-> * on each mouse up, print the number of mouse moves since mouse down.
-> * shows how you can adapt existing sequences to async algorithms
-> * the mouse event functions wrap HTML DOM addeventlistener access provided by emscripten.
+
+> * rxcpp is a complete library with many algorithms that is designed for .green[C++11]
+> * on each mouse up, .green[print] the number of mouse moves since mouse down.
+> * shows how you can .green[adapt] existing sequences to async algorithms
+> * the mouse event functions wrap .green[HTML DOM addeventlistener] access provided by emscripten.
+> * .green[$] is used to indicate a source of values over time. Popularized by @stalz
+
 ---
 ## take_until
 <rx-marbles key="takeUntil"/>
 ???
-> needs to stop the source early when the trigger value arrives
+> * needs to stop the source early when the trigger value arrives
 ---
 
 function: rxlinesfrombytes
@@ -279,7 +308,7 @@ types: number,number,number
 arguments: 1000, 4, 11
 output: rxlinesfrombytesoutput
 
-# lines from bytes
+# packets of bytes distributed in time
 .split-60[
 .column[
 
@@ -309,11 +338,10 @@ __output__ (emscripten)
 ]
 
 ???
-bytes arrive once a second. as each set of bytes arrives, it is split on `\r`, grouped into lines and then each group is appended into a line
-
-> * highlighted lines __print__ the _bytes_ as they arrive and the _lines_ as they are emited
-> * __$__ is used to indicate a source of values over time. Popularized by @stalz
-> * the output is generated live on slide transition by the C++ code compiled by emscripten
+> * a .green[packet] of bytes arrives once a second and is printed.
+> * each set of bytes is .green[split] on `\r`
+> * sets ending in '\r' are .green[grouped] into lines 
+> * and then each group is .green[reduced] into a single line and then printed
 ---
 
 function: rxhttp
@@ -321,7 +349,7 @@ types: string, number
 arguments: https://raw.githubusercontent.com/Reactive-Extensions/RxCpp/master/README.md, 80
 output: rxhttplocalhostoutput
 
-# bytes from http GET
+# http requests distributed in time
 .split-60[
 .column[
 
@@ -329,9 +357,7 @@ __code__ (rxcpp)
 
 ```cpp
 struct data { int size; string firstLine;};
-struct model {
-    map<string, data> store;
-};
+struct model { map<string, data> store; };
 
 httpGet("https://aka.ms/rxcppreadme") |
   flat_map([](response_t r) {
@@ -363,9 +389,10 @@ __output__ (emscripten)
 ]
 
 ???
-> * a common pattern is to scan into a model. the result is a source of model updates
-> * in the JS world, scan to a model is an implementation of the `flux` concept.
-> * httpGet wraps `XmlHttpRequest` access provided by emscripten.
+> * .green[combines] progress and load signals from many requestd into a model.
+> * a common pattern is to .green[scan] into a model. the result is a source of model updates
+> * in the JS world, scan to a model is an implementation of the .green[`flux`] concept.
+> * httpGet wraps .green[`XmlHttpRequest`] access provided by emscripten.
 ---
 ## scan
 <rx-marbles key="scan"/>
@@ -380,34 +407,38 @@ name: whyalgo
 #why alogrithms?
 
 * ## .green[documented]
+
+--
 * ## .green[stable]
+
+--
 * ## .green[optimized]
+
+--
 * ## .green[descriptive]
 
 ???
-* the __behavior__, __complexity__ and __tradeoffs__ selected are
+> * the .green[behavior], .green[complexity] and .green[tradeoffs] selected are
 documented and consistent across implementations
-* the implementation is __well specified__, __tested__ and __actively maintained__
-* the implementation is __minimal__ and __efficient__
-* the usage __describes__ the steps clearly (transform and remove_if vs for loop and an if statement)
-
-> after a while looking at a for-loop will become an excercise in finding the set of algorithms that it re-implements
+> * the implementation is .green[well specified], .green[tested] and .green[actively maintained]
+> * the implementation is .green[minimal] and .green[efficient]
+> * the usage .green[describes] the steps clearly (transform and copy_if vs for loop and an if statement)
+> * after a while looking at raw callbacks and promises will become an excercise in .green[finding the set of algorithms] that it re-implements
 ---
 
 ##what do algorithms operate on?
 
 ???
 
-algorithms deal with sequences of values
+> * algorithms deal with sequences of values
 
 ---
 
 name: sequences
 
-#sequences
+#What ways can a sequence be delivered?
 
 ???
-What ways can a sequence be delivered?
 ---
 template: sequences
 
@@ -415,8 +446,8 @@ template: sequences
 .column[
 
 ## in space
-* ## vector of mouse positions
-* ## generator of mouse positions
+* ## .green[vector] of mouse positions
+* ## .green[generator] of mouse positions
 
 ]
 
@@ -448,7 +479,8 @@ auto mouseMoves(int start, int end)
 
 ???
 
-values distributed in space
+> * values distributed in space
+> * stl, rangev3
 
 ---
 template: sequences
@@ -457,8 +489,8 @@ template: sequences
 .column[
 
 ## in time
-* ##mouse move events
-* ##network packets
+* ## mouse move .green[events]
+* ## network .green[packets]
 
 ]
 
@@ -489,7 +521,8 @@ auto socket::bytes()
 
 ???
 
-values distributed in time
+> * values distributed in time
+> * rxcpp
 
 ---
 
@@ -615,18 +648,28 @@ __output__ (emscripten)
 ]
 
 ???
-now improve the contract.
 ---
 ## what needs to change to support last_or_default?
 
 <rx-marbles key="last"/>
 ???
-last needs to know when the source is complete
+> * needs to know when the source is .green[complete]
+> * also needs to store .green[state] - covered later.
 ---
 
-.split-60[
+.split-40[
 .column[
+####sequence concepts
+```cpp
+struct observer {
+    template<class T>
+    void next(T);
+    void `complete`();
+};
 
+```
+]
+.column[
 ####sequence implementations
 ```cpp
 const auto last_or_default = [](auto def){
@@ -648,21 +691,13 @@ const auto last_or_default = [](auto def){
 };
 ```
 ]
-.column[
-####sequence concepts
-```cpp
-struct observer {
-    template<class T>
-    void next(T);
-    void `complete`();
-};
-
-```
-
-]
 ]
 
 ???
+
+> * .green[copies] each value as it arrives
+> * when complete, .green[sends] the copied value before sending complete
+
 ---
 
 module: Context
@@ -701,21 +736,28 @@ __output__ (emscripten)
 ]
 
 ???
-1 million ints are filtered to 500 thousand even ints and then the last even int is printed.
+> * 1 million ints are filtered to 500 thousand even ints and then the last even int is printed.
 ---
 ## what needs to change to support take?
 
 <rx-marbles key="take"/>
 ???
-take needs to be able to stop the source.
+> * needs to be able to stop the source (.green[cancellation]).
+> * needs to be able to keep .green[state].
 ---
 
 ## what features are needed to support asynchronous lifetime and cancellation?
 
-* ## .green[make_shared<T>] for state
-* ## .green[graph] of nested lifetimes
 * ## .green[signal] for explicit cancellation of lifetime graph
+
+--
 * ## .green[registration] for cancellation signal
+
+--
+* ## .green[nested] lifetime graph
+
+--
+* ## .green[make_shared<T>] for asynchronous lifetime
 
 ???
 ---
@@ -728,12 +770,12 @@ struct subscription
   bool is_stopped();
   void stop(); // `signal`
 
+  // `registration`
+  void insert(function<void()> stopper);
+
   // `nested`
   void insert(const subscription& s);
   void erase(const subscription& s);
-
-  // `registration`
-  void insert(function<void()> stopper);
 
   // `make_shared<Payload>`
   template<class Payload, class... ArgN>
@@ -783,10 +825,12 @@ struct adaptor {
 > * subscription lifetimes can be .green[nested].
 > * .green[stop] will call stop on all nested subscriptions then call all stoppers in the .green[inverse] order they were inserted.
 > * .green[make_state] will allocate heap that is scoped by the subscription lifetime. all the state is destructed when the last copy of the subscription is destructed.
-
+> * .green[adaptor] and .green[lifter] are two different ways to implement algorithms
+> * .green[subscriber] allows late binding of the lifetime to an observer
+> * .green[starter] allows lazy start of a completed expression
 ---
 
-####push sequence implementations
+####sequence implementations
 ```cpp
 const auto take = [](int n){
   return make_adaptor([=](auto source){
@@ -854,47 +898,42 @@ __output__ (emscripten)
 ]
 
 ???
-output shows the expanded lifetime stages for a sender/receiver pair.
-
-in the __construct__ phase new operators are constructed
-
-in the __subscribe__ phase the lifetime is constructed and the dest for each operator is provided
-
-in the __run__ phase the next notifications occur.
-
-in the __complete__ phase complete is delievered followed by stop. or stop is called.
-
-when the objects go out of scope the destructors are called. 
-
-__flow__ construct from source to dest, subscribe from dest to source, run and complete flow from source to dest and stop from dest to source.
 
 ---
 
 ## what needs to change to support failure?
 
 ???
-the exception must be caught and sent to the receiver and then stop the subscription. 
---
+> * the exception must be .green[caught]
+> * the exception must be .green[sent] to the observer
+> * .green[stop] must be signaled to cancel the expression
+---
 
+####sequence concepts
 ```cpp
-struct receiver
-{
-  subscription lifetime;
-  template<class V>
-  void operator()(V);
-  `void operator()(exception_ptr);`
-  void operator()();
+struct observer {
+    template<class T>
+    void next(T);
+
+    template<class E>
+    void `error`(E);
+
+    void complete();
 };
+
 ```
 
 ???
-stop is already working. adding the method on the receiver is the only change to the contract.
+> * stop is already working. 
+> * add an error method on the observer
+> * ensure that calling error then calls stop
 ---
 
-function: designerror
+module: Context
+function: errorv3
 types: number,number,number
 arguments: 0, 9, 3
-output: designerroroutput
+output: errorv3output
 
 ## what needs to change to support failure?
 
@@ -904,10 +943,11 @@ output: designerroroutput
 __code__
 
 ```cpp
-async_ints(0, 9) | 
+ints(0, 9) | 
   copy_if(always_throw) | 
-  take(3) | 
-  printto(cout);
+  take(count) |
+  printto(cout) |
+  start<destruction>(subscription{}, destruction{});
 ```
 
 ]
@@ -917,7 +957,7 @@ async_ints(0, 9) |
 __output__ (emscripten)
 
 .emscripten-output[
- <div id="designerroroutput"/>
+ <div id="errorv3output"/>
 ]
 
 ]
@@ -933,76 +973,64 @@ __output__ (emscripten)
 <rx-marbles key="delay"/>
 
 ???
-need to schedule a function to be called later
 
-switch to a more complete implementation - rxcpp
+> * need to schedule a function to be called later
+
 ---
 
 ## what needs to change to support delay?
 
 .split-50[
 .column[
+####defer concepts
 ```cpp
-struct `schedulable`
-  : public worker
-  , public subscription {
-  void operator()();
+template<class Clock>
+struct `strand` {
+    subscription lifetime;
+
+    Clock::time_point now();
+    void defer_at(Clock::time_point, observer);
 };
 
-struct `worker` {
-  steady_clock::time_point now();
+template<class Payload, class Clock>
+struct context {
+    subscription lifetime;
+    
+    Clock::time_point now();
+    void defer_at(Clock::time_point, observer);
 
-  void schedule(const schedulable& scbl);
-  void schedule(
-      steady_clock::time_point when, 
-      const schedulable& scbl);
-};
-
-struct `scheduler` {
-    worker create_worker(subscription);
+    Payload& get();
 };
 ```
 ]
 .column[
+####sequence concepts
 ```cpp
-struct subscription {
-  void unsubscribe();  
+struct starter {
+    template<class Payload, class Clock>
+    subscription start(context<Payload, Clock>);
 };
 
-template<class T>
-struct observer {
-  on_next(T);
-  on_error(exception_ptr);
-  on_completed();
-};
-
-template<class T>
-struct subscriber 
-  : public observer<T>
-  , public subscription {
-};
-
-template<class T>
-struct observable {
-  subscription subscribe(subscriber<T>);
+struct subscriber {
+    template<class Payload, class Clock>
+    observer create(context<Payload, Clock>);
 };
 ```
 ]
 ]
 ???
-a schedulable is a function that can be scheduled or stopped.
 
-a worker is a strand of execution. 
+> * a strand is a FIFO queue of .green[observers]
+> * a strand controls the value of .green[now]
+> * when a strand is .green[stopped] all pending observers are stopped.
 
-only one schedulable is called at a time.
-
-when a worker is stopped all pending schedulable are stopped.
 ---
 
-function: rxdelay
+module: Context
+function: delayv3
 types: number, number, number
 arguments: 1000, 1500, 3
-output: rxdelayoutput
+output: delayv3output
 
 ## what needs to change to support delay?
 
@@ -1012,11 +1040,12 @@ output: rxdelayoutput
 __code__
 
 ```cpp
-  interval(1s, scheduler) |
-    tap(printproduced) |
-    delay(1500ms, scheduler) |
-    take(5) |
-    subscribe(printemitted);
+intervals(makeStrand, steady_clock::now(), 1s) | 
+  printproduced(cout) |
+  delay(makeStrand, 1500ms) |
+  take(3) |
+  printto(cout) |
+  start<destruction>(subscription{}, destruction{});
 ```
 
 ]
@@ -1026,7 +1055,7 @@ __code__
 __output__ (emscripten)
 
 .emscripten-output[
- <div id="rxdelayoutput"/>
+ <div id="delayv3output"/>
 ]
 
 ]
@@ -1163,7 +1192,128 @@ if (required == actual) {
 ???
 ---
 
-##what designs do other combinations produce?
+## What if these algorithms are implemented using the coroutine proposal?
+
+#### transform implementation
+```cpp
+template<typename Source, typename Selector, 
+  typename SourceValue = decay_t<Source>::value_type, 
+  typename SelectValue = result_of_t<Selector(SourceValue const &)>>
+co_value_generator<SelectValue> transform(Source source, Selector select) {
+  for co_await (auto&& v : source) {
+    co_yield select(v);
+  }
+}
+```
+
+#### transform usage
+```cpp
+future<void> print0to9doubled() {
+  for co_await(auto v : ints(0, 9) | transform([](int v){return v * 2;})) {
+    cout << v << endl;
+  }
+}
+```
+???
+---
+
+## What if these algorithms are implemented using the coroutine proposal?
+
+.split-50[
+.column[
+#### sequence concepts
+```cpp
+template <typename P>
+struct co_generator
+{
+  using iterator = co_iterator<value_type>;
+
+  co_iterator_awaiter<value_type> begin() const;
+
+  iterator end() const;
+
+  co_generator_promise<T> const * p;
+};
+```
+]
+.column[
+#### sequence concepts
+```cpp
+template <typename T>
+struct co_iterator 
+  : std::iterator<std::input_iterator_tag, T>
+{
+  // end iterator
+  co_iterator(nullptr_t) : m_p(nullptr);
+  // iterator
+  co_iterator(co_generator_promise<T> const & p);
+
+  co_inc_awaiter<T> operator++();
+
+  bool operator==(co_iterator const &rhs) const;
+
+  T &operator*();
+  T *operator->();
+
+  co_generator_promise<T> const * m_p;
+};
+```
+]
+]
+
+???
+---
+
+## What if these algorithms are implemented using the coroutine proposal?
+
+.split-50[
+.column[
+#### sequence concepts
+```cpp
+template <typename T>
+struct co_iterator_awaiter
+{
+  bool await_ready();
+
+  void await_suspend(
+    const coroutine_handle<>& handle);
+
+  co_iterator<T> await_resume();
+
+  co_generator_promise<T> const * m_p;
+};
+```
+]
+.column[
+#### sequence concepts
+```cpp
+template <typename T>
+struct co_inc_awaiter
+{
+  bool await_ready();
+
+  void await_suspend(
+    const coroutine_handle<>& handle);
+
+  co_iterator<T>& await_resume();
+
+  co_iterator<T>* m_it;
+};
+```
+]
+]
+
+???
+---
+##complete.
+questions?
+
+<rx-marbles key="merge"/>
+
+???
+---
+
+##what other designs exist?
 
 ???
 ---
@@ -1289,13 +1439,6 @@ circleFollowsMouse(Behavior<Point2D> mousePos) {
   return map(circleAt, mousePos);
 }
 ```
-???
----
-##complete.
-questions?
-
-<rx-marbles key="merge"/>
-
 ???
 ---
 name: rangev3

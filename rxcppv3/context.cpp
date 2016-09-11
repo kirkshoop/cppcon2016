@@ -57,7 +57,7 @@ void info(A0 a0, AN... an){
 const auto info = [](auto... an){
 #if RX_INFO
     unique_lock<mutex> guard(detail::infolock);
-    cout << this_thread::get_id() << " - " << duration_cast<milliseconds>(steady_clock::now() - detail::start).count() << "ms - ";
+    cout << this_thread::get_id() << " - " << fixed << setprecision(1) << setw(4) << duration_cast<milliseconds>(steady_clock::now() - detail::start).count()/1000.0 << "s - ";
     detail::info(an...);
 #else
     make_tuple(an...);
@@ -68,7 +68,7 @@ const auto output = [](auto... an){
 #if RX_INFO
     unique_lock<mutex> guard(detail::infolock);
 #endif
-    cout << this_thread::get_id() << " - " << duration_cast<milliseconds>(steady_clock::now() - detail::start).count() << "ms - ";
+    cout << this_thread::get_id() << " - " << fixed << setprecision(1) << setw(4) << duration_cast<milliseconds>(steady_clock::now() - detail::start).count()/1000.0 << "s - ";
     detail::info(an...);
 };
 

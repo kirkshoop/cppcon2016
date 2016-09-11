@@ -108,6 +108,58 @@ using rx::merge;
     lifetime.insert(l);
 }
 
+extern"C" void EMSCRIPTEN_KEEPALIVE errorv3(int first, int last, int count){
+
+using namespace std::chrono;
+
+using namespace rx;
+using rx::copy_if;
+using rx::transform;
+using rx::merge;
+
+    auto l = async_ints(makeStrand, first, last) | 
+        copy_if(always_throw) | 
+        take(count) |
+        printto(cout) |
+        start<destruction>(subscription{}, destruction{});
+
+    lifetime.insert(l);
+}
+
+extern"C" void EMSCRIPTEN_KEEPALIVE delayv3(int producems, int delayms, int count){
+
+using namespace std::chrono;
+
+using namespace rx;
+using rx::copy_if;
+using rx::transform;
+using rx::merge;
+
+    const auto printproduced = [](auto& output){
+        return make_lifter([&output](auto scbr){
+            return make_subscriber([=, &output](auto ctx){
+                auto r = scbr.create(ctx);
+                auto start = ctx.now();
+                return make_observer(r, r.lifetime, [=, &output](auto& r, auto v){
+                    defer(ctx, make_observer(subscription{}, [=, &output](auto& ){
+                        output << this_thread::get_id() << " - " << fixed << setprecision(1) << setw(4) << duration_cast<milliseconds>(ctx.now() - start).count()/1000.0 << "s - " << v << " produced" << endl;
+                    }));
+                    r.next(v);
+                });
+            });
+        });
+    };
+
+    auto l = intervals(makeStrand, steady_clock::now() + milliseconds(producems), milliseconds(producems)) | 
+        printproduced(cout) |
+        delay(makeStrand, milliseconds(delayms)) |
+        take(count) |
+        printto(cout) |
+        start<destruction>(subscription{}, destruction{});
+
+    lifetime.insert(l);
+}
+
 #if !EMSCRIPTEN
 
 extern"C" void EMSCRIPTEN_KEEPALIVE designcontext(int first, int last){

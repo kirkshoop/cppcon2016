@@ -43,7 +43,7 @@ const auto async_ints = [](auto makeStrand, auto first, auto last){
                     self(outcontext.now());
                 }, detail::pass{}, detail::skip{});
             info("async_ints started");
-            defer_at(outcontext, outcontext.now(), lifted);
+            defer(outcontext, lifted);
             return ctx.lifetime;
         });
     });
