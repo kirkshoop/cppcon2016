@@ -783,6 +783,10 @@ public:
         return                    lift<bool>(rxo::detail::any<T, Predicate>(std::move(p)));
     }
 
+    // workaround for - rx-observable.hpp(799): error C2066: cast to function type is illegal 
+    // 799 was: decltype(EXPLICIT_THIS lift<bool>(rxo::detail::any<T, std::function<bool(T)>>(std::function<bool(T)>{})))
+    typedef std::function<bool(T)> boolFromT;
+
     /*! Returns an Observable that emits true if the source Observable emitted a specified item, otherwise false.
         Emits false if the source Observable terminates without emitting any item.
 
@@ -796,10 +800,10 @@ public:
     */
     auto contains(T value) const
         /// \cond SHOW_SERVICE_MEMBERS
-        -> decltype(EXPLICIT_THIS lift<bool>(rxo::detail::any<T, std::function<bool(T)>>(std::function<bool(T)>{})))
+        -> decltype(EXPLICIT_THIS lift<bool>(rxo::detail::any<T, boolFromT>(nullptr)))
         /// \endcond
     {
-        return                    lift<bool>(rxo::detail::any<T, std::function<bool(T)>>([value](T n) { return n == value; }));
+        return                    lift<bool>(rxo::detail::any<T, boolFromT>([value](T n) { return n == value; }));
     }
 
     /*! For each item from this observable use Predicate to select which items to emit from the new observable that is returned.
@@ -864,13 +868,61 @@ public:
         return                  switch_if_empty(rxs::from(std::move(v)));
     }
 
+    /*! Determine whether two Observables emit the same sequence of items.
+
+        \tparam OtherSource      the type of the other observable.
+        \tparam BinaryPredicate  the type of the value comparing function. The signature should be equivalent to the following: bool pred(const T1& a, const T2& b);
+
+        \param t     the other Observable that emits items to compare.
+        \param pred  the function that implements comparison of two values.
+
+        \return  Observable that emits true only if both sequences terminate normally after emitting the same sequence of items in the same order; otherwise it will emit false.
+
+        \sample
+        \snippet sequence_equal.cpp sequence_equal sample
+        \snippet output.txt sequence_equal sample
+    */
+    template<class OtherSource, class BinaryPredicate>
+    auto sequence_equal(OtherSource&& t, BinaryPredicate&& pred) const
+    /// \cond SHOW_SERVICE_MEMBERS
+    -> typename std::enable_if<is_observable<OtherSource>::value,
+                observable<bool, rxo::detail::sequence_equal<T, this_type, OtherSource, BinaryPredicate, identity_one_worker>>>::type
+    /// \endcond
+    {
+        return  observable<bool, rxo::detail::sequence_equal<T, this_type, OtherSource, BinaryPredicate, identity_one_worker>>(
+                rxo::detail::sequence_equal<T, this_type, OtherSource, BinaryPredicate, identity_one_worker>(*this, std::forward<OtherSource>(t), std::forward<BinaryPredicate>(pred), identity_one_worker(rxsc::make_current_thread())));
+    }
+
+    /*! Determine whether two Observables emit the same sequence of items.
+
+        \tparam OtherSource  the type of the other observable.
+
+        \param t  the other Observable that emits items to compare.
+
+        \return  Observable that emits true only if both sequences terminate normally after emitting the same sequence of items in the same order; otherwise it will emit false.
+
+        \sample
+        \snippet sequence_equal.cpp sequence_equal sample
+        \snippet output.txt sequence_equal sample
+    */
+    template<class OtherSource>
+    auto sequence_equal(OtherSource&& t) const
+    /// \cond SHOW_SERVICE_MEMBERS
+    -> typename std::enable_if<is_observable<OtherSource>::value,
+                observable<bool, rxo::detail::sequence_equal<T, this_type, OtherSource, rxu::equal_to<>, identity_one_worker>>>::type
+    /// \endcond
+    {
+        return  observable<bool, rxo::detail::sequence_equal<T, this_type, OtherSource, rxu::equal_to<>, identity_one_worker>>(
+                rxo::detail::sequence_equal<T, this_type, OtherSource, rxu::equal_to<>, identity_one_worker>(*this, std::forward<OtherSource>(t), rxu::equal_to<>(), identity_one_worker(rxsc::make_current_thread())));
+    }
+
     /*! inspect calls to on_next, on_error and on_completed.
 
         \tparam MakeObserverArgN...  these args are passed to make_observer
 
         \param an  these args are passed to make_observer.
 
-        \return  Observable that emits the same items as the source observable to both the subscriber and the observer. 
+        \return  Observable that emits the same items as the source observable to both the subscriber and the observer.
 
         \note If an on_error method is not supplied the observer will ignore errors rather than call std::abort()
 
@@ -1066,7 +1118,7 @@ public:
         \param s  the selector function
 
         \return  Observable that emits the items from the source observable, transformed by the specified function.
-        
+
         \sample
         \snippet map.cpp map sample
         \snippet output.txt map sample
@@ -1167,7 +1219,7 @@ public:
     {
         return                    lift<T>(rxo::detail::delay<T, Duration, identity_one_worker>(period, identity_current_thread()));
     }
-       
+
     /*! For each item from this observable, filter out repeated values and emit only items that have not already been emitted.
 
         \return  Observable that emits those items from the source observable that are distinct.
@@ -1399,7 +1451,7 @@ public:
         \tparam ClosingSelector a function of type observable<CT>(OT)
         \tparam Coordination    the type of the scheduler
 
-        \param opens         each value from this observable opens a new window. 
+        \param opens         each value from this observable opens a new window.
         \param closes        this function is called for each opened window and returns an observable. the first value from the returned observable will close the window
         \param coordination  the scheduler for the windows
 
@@ -1423,7 +1475,7 @@ public:
         \tparam Openings        observable<OT>
         \tparam ClosingSelector a function of type observable<CT>(OT)
 
-        \param opens         each value from this observable opens a new window. 
+        \param opens         each value from this observable opens a new window.
         \param closes        this function is called for each opened window and returns an observable. the first value from the returned observable will close the window
 
         \return  Observable that emits an observable for each opened window.
@@ -2163,20 +2215,6 @@ public:
 
     template<class Source, class TS, class C = rxu::types_checked>
     struct select_with_latest_from : public std::false_type {
-        template<class T0, class T1, class... TN>
-        void operator()(const Source&, T0, T1, TN...) const {
-            static_assert(is_coordination<T0>::value ||
-                is_observable<T0>::value ||
-                std::is_convertible<T0, std::function<void(typename T1::value_type, typename TN::value_type...)>>::value
-                , "T0 must be selector, coordination or observable");
-            static_assert(is_observable<T1>::value  ||
-                std::is_convertible<T1, std::function<void(typename TN::value_type...)>>::value, "T1 must be selector or observable");
-            static_assert(rxu::all_true<true, is_observable<TN>::value...>::value, "TN... must be observable");
-        }
-        template<class T0>
-        void operator()(const Source&, T0) const {
-            static_assert(is_observable<T0>::value, "T0 must be observable");
-        }
     };
 
     template<class Source, class T0, class T1, class... TN>
@@ -2186,7 +2224,7 @@ public:
     };
 
     template<class Source, class Selector, class... TN>
-    struct select_with_latest_from<Source, rxu::types<Selector, TN...>, typename rxu::types_checked_from<typename Source::value_type, typename TN::value_type..., typename std::enable_if<!is_coordination<Selector>::value>::type, typename std::enable_if<!is_observable<Selector>::value>::type, typename std::result_of<Selector(typename Source::value_type, typename TN::value_type...)>::type, typename TN::observable_tag...>::type>
+    struct select_with_latest_from<Source, rxu::types<Selector, TN...>, typename rxu::types_checked_from<typename Source::value_type, typename TN::value_type..., typename std::enable_if<!is_coordination<Selector>::value>::type, typename std::enable_if<!is_observable<Selector>::value>::type, typename TN::observable_tag...>::type>
         : public std::true_type
     {
         typedef rxo::detail::with_latest_from<identity_one_worker, Selector, Source, TN...> operator_type;
@@ -2249,7 +2287,6 @@ public:
         return      select_with_latest_from<this_type, rxu::types<decltype(an)...>>{}(*this,                 std::move(an)...);
     }
 
-
     /// \cond SHOW_SERVICE_MEMBERS
     template<class Source, class Coordination, class TS, class C = rxu::types_checked>
     struct select_combine_latest_cn : public std::false_type {};
@@ -2280,20 +2317,6 @@ public:
 
     template<class Source, class TS, class C = rxu::types_checked>
     struct select_combine_latest : public std::false_type {
-        template<class T0, class T1, class... TN>
-        void operator()(const Source&, T0, T1, TN...) const {
-            static_assert(is_coordination<T0>::value ||
-                is_observable<T0>::value ||
-                std::is_convertible<T0, std::function<void(typename T1::value_type, typename TN::value_type...)>>::value
-                , "T0 must be selector, coordination or observable");
-            static_assert(is_observable<T1>::value  ||
-                std::is_convertible<T1, std::function<void(typename TN::value_type...)>>::value, "T1 must be selector or observable");
-            static_assert(rxu::all_true<true, is_observable<TN>::value...>::value, "TN... must be observable");
-        }
-        template<class T0>
-        void operator()(const Source&, T0) const {
-            static_assert(is_observable<T0>::value, "T0 must be observable");
-        }
     };
 
     template<class Source, class T0, class T1, class... TN>
@@ -2303,7 +2326,7 @@ public:
     };
 
     template<class Source, class Selector, class... TN>
-    struct select_combine_latest<Source, rxu::types<Selector, TN...>, typename rxu::types_checked_from<typename Source::value_type, typename TN::value_type..., typename std::enable_if<!is_coordination<Selector>::value>::type, typename std::enable_if<!is_observable<Selector>::value>::type, typename std::result_of<Selector(typename Source::value_type, typename TN::value_type...)>::type, typename TN::observable_tag...>::type>
+    struct select_combine_latest<Source, rxu::types<Selector, TN...>, typename rxu::types_checked_from<typename Source::value_type, typename TN::value_type..., typename std::enable_if<!is_coordination<Selector>::value>::type, typename std::enable_if<!is_observable<Selector>::value>::type, typename TN::observable_tag...>::type>
         : public std::true_type
     {
         typedef rxo::detail::combine_latest<identity_one_worker, Selector, Source, TN...> operator_type;
@@ -2396,20 +2419,6 @@ public:
 
     template<class Source, class TS, class C = rxu::types_checked>
     struct select_zip : public std::false_type {
-        template<class T0, class T1, class... TN>
-        void operator()(const Source&, T0, T1, TN...) const {
-            static_assert(is_coordination<T0>::value ||
-                is_observable<T0>::value ||
-                std::is_convertible<T0, std::function<void(typename T1::value_type, typename TN::value_type...)>>::value
-                , "T0 must be selector, coordination or observable");
-            static_assert(is_observable<T1>::value  ||
-                std::is_convertible<T1, std::function<void(typename TN::value_type...)>>::value, "T1 must be selector or observable");
-            static_assert(rxu::all_true<true, is_observable<TN>::value...>::value, "TN... must be observable");
-        }
-        template<class T0>
-        void operator()(const Source&, T0) const {
-            static_assert(is_observable<T0>::value, "T0 must be observable");
-        }
     };
 
     template<class Source, class T0, class T1, class... TN>
@@ -2419,7 +2428,7 @@ public:
     };
 
     template<class Source, class Selector, class... TN>
-    struct select_zip<Source, rxu::types<Selector, TN...>, typename rxu::types_checked_from<typename Source::value_type, typename TN::value_type..., typename std::enable_if<!is_coordination<Selector>::value>::type, typename std::enable_if<!is_observable<Selector>::value>::type, typename std::result_of<Selector(typename Source::value_type, typename TN::value_type...)>::type, typename TN::observable_tag...>::type>
+    struct select_zip<Source, rxu::types<Selector, TN...>, typename rxu::types_checked_from<typename Source::value_type, typename TN::value_type..., typename std::enable_if<!is_coordination<Selector>::value>::type, typename std::enable_if<!is_observable<Selector>::value>::type, typename TN::observable_tag...>::type>
         : public std::true_type
     {
         typedef rxo::detail::zip<identity_one_worker, Selector, Source, TN...> operator_type;

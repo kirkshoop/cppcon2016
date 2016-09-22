@@ -11,6 +11,8 @@ void tick(){
 
 rx::subscription lifetime{};
 
+#if EMSCRIPTEN
+
 extern"C" void EMSCRIPTEN_KEEPALIVE reset() {
     lifetime.stop();
     lifetime = rx::subscription{};
@@ -18,3 +20,5 @@ extern"C" void EMSCRIPTEN_KEEPALIVE reset() {
     //makeStrand = loop.make();
     detail::start = steady_clock::now();
 }
+
+#endif

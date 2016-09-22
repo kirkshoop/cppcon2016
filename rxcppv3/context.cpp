@@ -99,15 +99,23 @@ struct destruction
 #include "common.h"
 #include "designcontext.h"
 
+#if EMSCRIPTEN
+
 int EMSCRIPTEN_KEEPALIVE main() {
 
-#if EMSCRIPTEN
     emscripten_set_main_loop(tick, -1, false);
-#else
-    designcontext(0, 100);
-    loop.run();
-#endif
 
     return 0;
 }
+
+#else
+
+int main() {
+    designcontext(0, 100);
+    loop.run();
+
+    return 0;
+}
+
+#endif
 

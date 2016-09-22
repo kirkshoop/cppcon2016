@@ -115,11 +115,49 @@ class: middle
 ???
 
 > * structure as interview (slide per question) with answer prompts in the notes
-> * have you watched .green[sean parent]'s _avoid raw loops_ talk?
-> * have you watched .green[eric neibler]'s _calendar printer_ talk using range-v3?
-> * live .green[marble] diagrams
-> * top line is input values in time
-> * bottom line is output values in time
+
+---
+
+# me
+
+.center[ 
+
+## .green[ ## I love code ]
+
+]
+
+???
+
+> * team meeting .green[weekly number] good week/bad week
+
+---
+
+# me
+
+.center[ 
+
+## .green[ I work at microsoft ]
+
+]
+
+???
+
+> * roomate in CS - .green[homework] was easy.
+> * took windows programming class for fun. classmate insisted that I send resume. became intern then contractor then employee
+
+---
+
+#what is the goal here?
+
+* ## .green[additive] to existing (stl, rangev3, parrallel_stl)
+* ## .green[scan] dense material
+* ## .green[derive] requirements from selected algorithms
+
+???
+
+> * .green[additive] - space vs. time, minimal vs. maximal resources.
+> * .green[scan] - go fast through dense slides then questions at end.
+> * .green[derive] - find the requirements for the __iterator__ for async algorithms 
 
 ---
 
@@ -177,7 +215,10 @@ __output__ (emscripten)
 ## delay
 <rx-marbles key="delay"/>
 ???
-> needs to schedule a function for later
+> * needs to schedule a function for .green[later]
+> * live .green[marble] diagrams
+> * .green[top line] is input values in time
+> * .green[bottom line] is output values in time
 ---
 
 # ux events distributed in time
@@ -389,7 +430,7 @@ __output__ (emscripten)
 ]
 
 ???
-> * .green[combines] progress and load signals from many requestd into a model.
+> * .green[combines] progress and load signals from many requests into a model.
 > * a common pattern is to .green[scan] into a model. the result is a source of model updates
 > * in the JS world, scan to a model is an implementation of the .green[`flux`] concept.
 > * httpGet wraps .green[`XmlHttpRequest`] access provided by emscripten.
@@ -397,24 +438,18 @@ __output__ (emscripten)
 ## scan
 <rx-marbles key="scan"/>
 ???
-> * scan holds x as state.
-> * the function is called when a value arrives.
-> * x is assigned the result of the function.
-> * the result of the function is emitted.
+> * scan .green[holds] `x` as state.
+> * the .green[updator] function is called when each value arrives.
+> * `x` is assigned the .green[result] of the function.
+> * the current value of `x` is .green[emitted].
 ---
 name: whyalgo
 
 #why alogrithms?
 
 * ## .green[documented]
-
---
 * ## .green[stable]
-
---
 * ## .green[optimized]
-
---
 * ## .green[descriptive]
 
 ???
@@ -430,17 +465,16 @@ documented and consistent across implementations
 
 ???
 
-> * algorithms deal with sequences of values
+> * algorithms deal with sequences of .green[values]
 
 ---
-
-name: sequences
 
 #What ways can a sequence be delivered?
 
 ???
 ---
-template: sequences
+
+#What ways can a sequence be delivered?
 
 .split-50[
 .column[
@@ -479,11 +513,12 @@ auto mouseMoves(int start, int end)
 
 ???
 
-> * values distributed in space
+> * values distributed in .green[space]
 > * stl, rangev3
 
 ---
-template: sequences
+
+#What ways can a sequence be delivered?
 
 .split-50[
 .column[
@@ -521,9 +556,53 @@ auto socket::bytes()
 
 ???
 
-> * values distributed in time
+> * values distributed in .green[time]
 > * rxcpp
 
+---
+
+# ReactiveExtensions
+
+* ## .green[algorithms] for values distributed in time
+* ## .green[implementations] for many [languages](http://reactivex.io/languages.html)
+
+???
+
+> * .green[rxcpp] - not the only way to represent the requirements
+> * .green[rxcpp] - extensive community and prod usage (netflix, microsoft, etc..)
+> * .green[algorithms] - have you watched .green[sean parent]'s _avoid raw loops_ talk?
+> * .green[algorithms] - have you watched .green[eric neibler]'s _calendar printer_ talk using range-v3?
+
+---
+
+# what algorithms are supported in rxcpp?
+
+__rxcpp__ uses cpp11 in vs2013, vs2015, clang and gcc
+
+.split-40[
+
+.column[
+
+* ### .green[Combining] 
+ * amb, buffer, combine_latest, concat, concat_map, flat_map, group_by, merge
+, switch_if_empty, switch_on_next, window, window_toggle, with_latest_from, zip
+* ### .green[Transforming] 
+ * delay, map, pairwise, on_error_resume_next, reduce, scan
+
+]
+
+.column[
+
+* ### .green[Filtering] 
+ * default_if_empty, distinct, distinct_until_changed, element_at, ignore_elements, take, take_last, take_until, skip, skip_last, skip_until, sample, debounce, filter
+* ### .green[Others] 
+ * all, contains, exists, observe_on, publish, repeat, replay, retry, sequence_equal, subscribe_on, tap, time_interval, timeout, timestamp
+
+]
+
+]
+
+???
 ---
 
 ## what algorithms will help define the concepts?
@@ -556,10 +635,14 @@ auto socket::bytes()
 ---
 
 ## what features are required to build the desired algorithms?
+
+### .green[rxcppv3] is a proof-of-concept in cpp14 that will be used to explore the requirements
+
 ???
 ---
 
-## what is the minimum set of features?
+## what are the minimum features?
+
 .split-40[
 .column[
 ####sequence concepts
@@ -609,7 +692,6 @@ const auto copy_if = [](auto pred){
 > Minimum 
 > * a .green[source] of values
 > * a .green[handler] for values
-> * algorithms that .green[adapt sources]
 > * algorithms that .green[lift handlers]
 ---
 
@@ -749,15 +831,9 @@ __output__ (emscripten)
 ## what features are needed to support asynchronous lifetime and cancellation?
 
 * ## .green[signal] for explicit cancellation of lifetime graph
-
---
 * ## .green[registration] for cancellation signal
-
---
 * ## .green[nested] lifetime graph
-
---
-* ## .green[make_shared<T>] for asynchronous lifetime
+* ## .green[make_shared<T>] equivalent for asynchronous lifetime
 
 ???
 ---
@@ -823,7 +899,7 @@ struct adaptor {
 
 > * subscription .green[owns] the lifetime of a subscribed expression.
 > * subscription lifetimes can be .green[nested].
-> * .green[stop] will call stop on all nested subscriptions then call all stoppers in the .green[inverse] order they were inserted.
+> * .green[stop] will call stop on all nested subscriptions then call all registered stoppers in the .green[inverse] order they were inserted.
 > * .green[make_state] will allocate heap that is scoped by the subscription lifetime. all the state is destructed when the last copy of the subscription is destructed.
 > * .green[adaptor] and .green[lifter] are two different ways to implement algorithms
 > * .green[subscriber] allows late binding of the lifetime to an observer
@@ -1076,45 +1152,65 @@ need to virtualize time
 .split-50[
 .column[
 ```cpp
-struct test_worker {
-  steady_clock::time_point now();
+struct virtual_clock {
+    static bool is_steady() const;
+    time_point `now`() const;
+    void `now`(time_point at);
+};
+```
 
-  void schedule(const schedulable& scbl);
-  void schedule(
-      steady_clock::time_point when, 
-      const schedulable& scbl);
+]
 
-  void advance_to(long time) const;
-  void advance_by(long time) const;
-  void sleep(long time) const;
+.column[
+```cpp
+struct test_loop {
+  void call(item_type& next) const;
+  void step(typename clock_type::duration d) const;
+  void run() const;
+  makeStrand make() const;
+};
+```
 
-  template<class T, class F>
-  auto start(F createSource, long created, 
-    long subscribed, long unsubscribed) const
-    -> subscriber<T, testable_observer<T>>;
+]
+]
+
+???
+---
+
+## what needs to change to support testing?
+
+.split-50[
+.column[
+```cpp
+struct recorded {
+  lifetime_record lifespan(
+    time_point start = duration{200}, 
+    time_point stop = duration{1000});
+
+  marble_record next(time_point at, T v);
+  marble_record error(time_point at, error_t e);
+  marble_record complete(time_point at);
+
+  observable hot(std::vector<marble_record> m);
+  observable cold(std::vector<marble_record> m);
+
+  //...
 };
 ```
 ]
 .column[
 ```cpp
-struct recorded {
-  steady_clock::time_point time() const;
-  template<class Observer>
-  virtual accept(const Observer& o) const;
-};
+  //...
 
-struct test {
-  using messages_t vector<recorded>;
-
-  steady_clock::time_point now() const;
-  test_worker create_worker(subscription cs) const;
-
-  template<class T>
-  auto make_hot_observable(messages_t m) const
-    -> testable_observable<T>;
-  template<class T>
-  auto make_cold_observable(messages_t m) const;
-    -> testable_observable<T>;
+  struct test_result {
+      time_point origin;
+      lifetime_record lifespan;
+      map<string, vector<marble_record>> marbles;
+  };
+  lifter record(string key) const;
+  template<class... TN>
+  terminator test(test_loop<TN...>& tl, 
+    lifetime_record l = lifetime_record{});
 };
 ```
 ]
@@ -1122,10 +1218,11 @@ struct test {
 ???
 ---
 
-function: rxtestdelay
-types: number, number
-arguments: 1000, 1500
-output: rxtestdelayoutput
+module: TestContext
+function: testdelayv3
+types: number, number, number
+arguments: 1000, 1500, 3
+output: testdelayv3output
 
 ## what needs to change to support testing?
 
@@ -1135,23 +1232,23 @@ output: rxtestdelayoutput
 __code__
 
 ```cpp
-auto scheduler = make_test();
-auto worker = scheduler.create_worker();
-
-auto interval$ = scheduler.make_hot_observable({
-    on.next(1000, 1),
-    on.next(2000, 2),
-    on.next(3000, 3),
-    on.next(4000, 4)
-});
-
-auto `res` = worker.start([&]() {
-  return interval$ |
-    tap(printproduced) |
-    delay(1500ms, scheduler) |
-    take(3) | 
-    tap(printemitted);
-});
+rx::test_loop<> loop;
+rx::recorded<int> on;
+auto tr = on.hot({
+        on.next(on.origin() + 1s * 1, 0),
+        on.next(on.origin() + 1s * 2, 1),
+        on.next(on.origin() + 1s * 3, 2),
+        on.next(on.origin() + 1s * 4, 3),
+        on.next(on.origin() + 1s * 5, 4)
+    }) | 
+    printout(cout, "produced") |
+    on.record("produced") |
+    delay(loop.make(), 1500ms) |
+    take(3) |
+    printout(cout, "") |
+    on.record("emitted") |
+    on.test(loop);
+loop.run();
 ```
 
 ]
@@ -1161,7 +1258,42 @@ auto `res` = worker.start([&]() {
 __output__ (emscripten)
 
 .emscripten-output[
- <div id="rxtestdelayoutput"/>
+ <div id="testdelayv3output"/>
+]
+
+]
+
+]
+
+???
+---
+
+module: TestContext>Context
+function: testdelayv3>delayv3
+types: number, number, number>number, number, number
+arguments: 1000, 1500, 3>1000, 1500, 3
+output: testdelayv3rightoutput>delayv3leftoutput
+
+## what needs to change to support testing?
+
+.split-50[
+
+.column[
+
+__output__ (emscripten)
+
+.emscripten-output[
+ <div id="delayv3leftoutput"></div>
+]
+
+]
+
+.column[
+
+__output__ (emscripten)
+
+.emscripten-output[
+ <div id="testdelayv3rightoutput"></div>
 ]
 
 ]
@@ -1173,38 +1305,190 @@ __output__ (emscripten)
 
 ## what needs to change to support testing?
 
+.split-50[
+
+.column[
+
+#### record test result
+
 ```cpp
-auto required = rxu::to_vector({
-  on.next(1000 + 1500, 1),
-  on.next(2000 + 1500, 2),
-  on.next(3000 + 1500, 3)
+rx::test_loop<> loop;
+rx::recorded<int> on;
+auto tr = on.hot({
+        on.next(on.origin() + 1s * 1, 0),
+        on.next(on.origin() + 1s * 2, 1),
+        on.next(on.origin() + 1s * 3, 2),
+        on.next(on.origin() + 1s * 4, 3),
+        on.next(on.origin() + 1s * 5, 4)
+    }) | 
+    printout(cout, "produced") |
+    on.record("produced") |
+    delay(loop.make(), 1500ms) |
+    take(3) |
+    printout(cout, "") |
+    on.record("emitted") |
+    on.test(loop);
+loop.run();
+```
+
+]
+
+.column[
+
+#### assert test succeeded
+
+```cpp
+
+
+auto expected = on.expected({
+    on.next(origin() + 1s * 1 + 1500ms, 0),
+    on.next(origin() + 1s * 2 + 1500ms, 1),
+    on.next(origin() + 1s * 3 + 1500ms, 2),
+    on.complete(origin() + 1s * 3 + 1500ms)
 });
-auto actual = `res`.get_observer().messages();
-cout << "emitted value test";
-if (required == actual) {
-    cout << " - SUCCEEDED" << endl;
+if (tr.get().marbles["emitted"] == expected) {
+    cout << "SUCCEEDED" << endl; 
 } else {
-    cout << " - FAILED" << endl;
-    cout << "REQUIRED: " << required << endl;
-    cout << "ACTUAL  : " << actual << endl;
+    cout << "FAILED" << endl; 
+    cout << "Actual:" << endl; 
+    cout << tr.get().marbles["emitted"] << endl;
+    cout << "Expected:" << endl; 
+    cout << expected << endl;
 }
 ```
+
+]
+
+]
+
+???
+---
+
+module: TestContext
+function: testdelayv3
+types: number, number, number
+arguments: 1000, 1500, 1
+output: testdelayv3failoutput
+
+## what needs to change to support testing?
+
+.split-60[
+.column[
+
+__failing code__
+
+```cpp
+rx::test_loop<> loop;
+rx::recorded<int> on;
+auto tr = on.hot({
+        on.next(on.origin() + 1s * 1, 0),
+        on.next(on.origin() + 1s * 2, 1),
+        on.next(on.origin() + 1s * 3, 2),
+        on.next(on.origin() + 1s * 4, 3),
+        on.next(on.origin() + 1s * 5, 4)
+    }) | 
+    printout(cout, "produced") |
+    on.record("produced") |
+    delay(loop.make(), 1500ms) |
+    `take(1)` |
+    printout(cout, "") |
+    on.record("emitted") |
+    on.test(loop);
+loop.run();
+```
+
+]
+
+.column[
+
+__output__ (emscripten)
+
+.emscripten-output[
+ <div id="testdelayv3failoutput"/>
+]
+
+]
+
+]
+
+???
+
+> * .green[fail] the test by using the wrong value for take.
+
+---
+#Requirements
+
+* ## .green[next], .green[complete], .green[error].
+* ## .green[lifetime], .green[allocation].
+* ## .green[cancellation], .green[scheduling].
+* ## .green[virtual-time], .green[testing]
+
 ???
 ---
 
 ## What if these algorithms are implemented using the coroutine proposal?
 
-#### transform implementation
 ```cpp
-template<typename Source, typename Selector, 
-  typename SourceValue = decay_t<Source>::value_type, 
-  typename SelectValue = result_of_t<Selector(SourceValue const &)>>
-co_value_generator<SelectValue> transform(Source source, Selector select) {
+co_value_generator<SelectValue> `transform`(Source source, Selector select) {
+
   for co_await (auto&& v : source) {
     co_yield select(v);
   }
+
 }
 ```
+
+```cpp
+co_value_generator<SourceValue> `concat`(Source source) {
+
+  for co_await (auto&& s : source) {
+    for co_await (auto&& v : s) {
+      co_yield v;
+    }
+  }
+
+}
+```
+
+???
+> * some algorithms are easy to write
+> * transform - call the select function for each value
+> * concat - consume each nested source sequentially
+---
+
+## What if these algorithms are implemented using the coroutine proposal?
+
+```cpp
+struct merge_value_promise : co_generator_promise<T>
+{
+  // >200 lines of code
+
+  merge_source_awaiter push(Source s) const {
+    auto& p = co_await merge_source_awaiter::get();
+    p.bind(this, canceled);
+    for co_await (auto& v : s) {
+      co_yield v;
+    }
+  }
+};
+
+co_generator<merge_value_promise<SourceValue>> merge(Source source) {
+  auto& p = co_await merge_value_promise<SourceValue>::get();
+  co_await p.caller_awaiter(nullptr);
+  for co_await (auto&& s : source) {
+    p.push(std::move(s));
+  }
+}
+```
+
+???
+> * some algorithms are harder
+> * merge - consume all nested sources concurrently and interleave their values
+> * coroutines express sequential processing of values distributed in time naturally. 
+> * expressing concurrent programming in coroutines requires extensive code.
+
+---
+## What if these algorithms are implemented using the coroutine proposal?
 
 #### transform usage
 ```cpp
@@ -1215,6 +1499,8 @@ future<void> print0to9doubled() {
 }
 ```
 ???
+> * usage composes like the other libraries
+> * consumption uses `for co_await()` on the expression
 ---
 
 ## What if these algorithms are implemented using the coroutine proposal?
@@ -1308,380 +1594,9 @@ struct co_inc_awaiter
 ##complete.
 questions?
 
-<rx-marbles key="merge"/>
-
+<rx-marbles key="concat"/>
 ???
----
-
-##what other designs exist?
-
-???
----
-
-name: asyncgenerator
-
-## async_generator 
-
-__abstract__ | __flow__ | __cancel__ | __chain__
-:----------- | :------- | :--------- | :--------
-__sequence__ | __pull__ | trigger    | operator
-
----
-
-template: asyncgenerator
-
-## async_generator concepts
-
-.split-50[
-.column[
-```cpp
-template<class T>
-struct await_iterator {
-  bool await_ready();
-  void await_suspend(coroutine_handle<>);
-  async_iterator<T> await_resume();
-};
-
-template<class T>
-struct async_iterator {
-    T& operator*();
-    await_iterator<T> operator++();
-};
-```
-]
-.column[
-```cpp
-template<class T>
-struct async_generator {
-    await_iterator<T> begin();
-    async_iterator<T> end();
-};
-```
-]
-]
-???
----
-template: asyncgenerator
-
-## implement filter operator
-
-```cpp
-  template<typename T, typename P>
-  async_generator<T> filter(async_generator<T> s, P pred) {
-    for co_await(auto&& v : s) {
-      if (pred(v)) {
-        co_yield v;
-      }
-    }
-  }
-```
-???
-
----
-template: asyncgenerator
-
-##use operators to chain algorithms together
-
-```cpp
-auto fiveOddInts = tempSensor() |
-  filter([](int n) { return n % 2 == 0; }) | // discard even
-  take(5); // stop after 5
-
-for co_await(auto n : fiveOddInts) {
-  // . . . 
-}
-```
-
-???
-
----
-
-name: sfrp
-
-## sfrp
-
-__abstract__ | __flow__ | __cancel__ | __chain__
-:----------- | :------- | :--------- | :--------
-__sequence__ | __pull__ | omission   | function
-
-???
-####Functional Reactive Programming (FRP)
-Conal Elliot describes this as '**values over time**'. Conal specifies two principals that constrain the definition and 
-implementation of an FRP system. 
-
-1. **denotation** - .text[a precise language independent description of the 
-whole system that can be verified without an implementation 
-(one expression would be in the Lambda Calculus)]
-2. **continuous time** - the system will have a valid value for any time value.
-
-Conal continues to develop a very precise denotation that can be resolved precisely into a specification and 
-various implementations. Conal vociferously defends the term FRP when applied to libraries that are not precisely 
-derived from the denotation.
-
-####The Essence and Origins of Functional Reactive Programming
-Conal Elliot @ Lambda Jam [YouTube](https://www.youtube.com/watch?v=j3Q32brCUAI)
-
-####sfrp (c++)
-David Sankel @ CppNow [YouTube](https://www.youtube.com/watch?v=tyaYLGQSr4g),[github](https://github.com/camio/sbase)
----
-
-template: sfrp
-
-####example
-
-```cpp
-template <typename R, typename Args...>
-Behavior<R>
-map(function<R(Args...)> func, Behavior<Args>... behaviors);
-
-Behavior<Drawing> 
-circleFollowsMouse(Behavior<Point2D> mousePos) {
-  return map(circleAt, mousePos);
-}
-```
-???
----
-name: rangev3
-
-##range-v3
-
-__abstract__ | __flow__ | __cancel__ | __chain__
-:----------- | :------- | :--------- | :--------
-sequence     | pull     | omission   | operator
-
-???
-adds operator chaining to the stl
-
----
-template: rangev3
-
-##the range concept
-
-```cpp
-template<class Iterator, class EndIterator = Iterator>
-struct range {
-    Iterator begin();
-    EndIterator end();
-};
-```
-
-???
-EndIterator may be a different type than Iterator to facilitate sentinel EndIterators
-
----
-
-## range-v3 - implement the transform view 
-
-```cpp
-// A class that adapts an existing range with a function
-template<class Rng, class Fun>
-class transform_view : public view_adaptor<transform_view<Rng, Fun>, Rng>
-{
-    class adaptor : public adaptor_base
-    {
-        // . . .
-        auto get(range_iterator_t<Rng> it) const -> decltype(fun_(*it)) {
-            return `fun_(*it)`;
-        }
-    };
-    adaptor begin_adaptor() const { return {fun_}; }
-    adaptor end_adaptor() const { return {fun_}; }
-    // . . .
-};
-template<class Rng, class Fun>
-transform_view<Rng, Fun> transform(Rng && rng, Fun fun) {
-    return {std::forward<Rng>(rng), std::move(fun)};
-}
-```
-???
----
-template: rangev3
-
-##use operators to chain algorithms together
-
-```cpp
-auto fiveOddInts = view::ints(0) | //generates next int when asked 
-  view::remove_if([](int n) { return n % 2 == 0; }) | // discard even ints
-  view::take(5); // stop after 5
-  
-auto result = fiveOddInts | view::to_vector;
-```
-???
----
-
-name: transducers
-
-##Transducers
-
-__abstract__ | __flow__ | __cancel__ | __chain__
-:----------- | :------- | :--------- | :--------
-algorithm    | push     | omission   | function
-
-???
----
-
-template: transducers
-
-##the step function
-
-```cpp
-struct transducer {
-    template<class NextStep>
-    struct step {
-        template<class State, class T>
-        auto operator()(State state, T v);
-        template<class State>
-        auto operator()(State state);
-    };
-    template<class NextStep>
-    auto operator()(NextStep nextstep) {
-        return step<NextStep>(nextstep);
-    }
-};
-```
-
-???
-`step::operator()` is where a call to nextstep would pass the value along.
-
----
-template: transducers
-
-##implement the filterer transducer
-
-```cpp
-  auto filterer = [](auto pred) {
-    return [=](auto step) {
-      return stateless(
-        [=](auto s, auto v) {
-          if (`pred(v)`) {return step(s, v);}
-          return s;
-        },
-        [=](auto s){
-          return step(s);
-        });
-    };
-  };
-```
-???
----
-template: transducers
-
-##use function nesting to chain algorithms together
-
-```cpp
-auto fiveOddInts = comp(
-  filter([](int n) { return n % 2 == 0; }), // discard even
-  take(5)); // stop after 5
-  
-auto result = into(vector<int> {}, fiveOddInts, range(0, 10));
-```
-???
----
-
-name: rxcpp
-
-## rxcpp 
-
-__abstract__ | __flow__ | __cancel__ | __chain__
-:----------- | :------- | :--------- | :--------
-sequence     | push     | trigger    | operator
-
----
-
-## concepts in rxcpp
-
-.split-50[
-.column[
-```cpp
-struct schedulable
-  : public worker
-  , public subscription {
-  void operator()();
-};
-
-struct worker {
-  steady_clock::time_point now();
-
-  void schedule(const schedulable& scbl);
-  void schedule(
-      steady_clock::time_point when, 
-      const schedulable& scbl);
-};
-
-struct scheduler {
-    worker create_worker(subscription);
-};
-```
-]
-.column[
-```cpp
-struct subscription {
-  void unsubscribe();  
-};
-
-template<class T>
-struct observer {
-  on_next(T);
-  on_error(std::exception_ptr);
-  on_completed();
-};
-
-template<class T>
-struct subscriber 
-  : public observer<T>
-  , public subscription {
-};
-
-template<class T>
-struct observable {
-  subscription subscribe(subscriber<T>);
-};
-```
-]
-]
-???
-* `subscription` controls the lifetime of the subscribe and is shared with the caller
-* `observer` has the same aspects as an iterator pair but in reverse
-* `observable` allows __hot__ sources to be shared and __cold__ sources to lazy start.
----
-## rxcpp - implement the filter operator
-
-```cpp
-auto filter = [](auto pred) {
-  return [=](auto subscriber) {
-    return make_subscriber(
-      [=](auto v) {
-        if (`pred(v)`) {
-          subscriber.on_next(v);
-        }
-      },
-      [=](std::exception_ptr ep) {
-        subscriber.on_error(ep);
-      },
-      [=]() {
-        subscriber.on_completed();
-      }
-    );
-  }
-};
-```
-???
----
-
-template: rxcpp
-
-##use operators to chain algorithms together
-
-```cpp
-auto fiveOddInts = tempSensor() | 
-  filter([](int n) { return n % 2 == 0; }) | // discard even
-  take(5); // stop after 5
-
-fiveOddInts.subscribe([](int n){. . .});
-```
-
-???
----
+> * concat some .green[questions]
 
     </textarea>
     <!--script src="https://gnab.github.io/remark/downloads/remark-latest.min.js" type="text/javascript" >
@@ -1709,6 +1624,8 @@ fiveOddInts.subscribe([](int n){. . .});
     <script src="./examples.js" type="text/javascript" >
     </script>
     <script src="./rxcppv3/context.js" type="text/javascript" >
+    </script>
+    <script src="./testrxcppv3/context.js" type="text/javascript" >
     </script>
     <!--script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&delayStartupUntil=configured" type="text/javascript" >
     </script-->
@@ -1751,21 +1668,30 @@ fiveOddInts.subscribe([](int n){. . .});
         // $$`
 
         var Context = ContextLib();
+        var TestContext = TestContextLib();
 
         slideshow.on("showSlide", function(slide) {
             if (!!slide.properties.function){
-                var output = document.getElementById(slide.properties.output);
-                if (output) output.innerHTML = ''; // clear contents
-                var module = Module;
-                if (!!slide.properties.module) {
-                  module = window[slide.properties.module];
-                }
-                module["print"] = printTo(output);
-                module.ccall(
-                    slide.properties.function, // C function
-                    slide.properties.return || null, // return type
-                    (slide.properties.types || "").split(','), // argument types
-                    (slide.properties.arguments || "").split(',')); // arguments
+                var m = (slide.properties.module || "").split('>');
+                var f = slide.properties.function.split('>');
+                var r = (slide.properties.return || "").split('>');
+                var t = (slide.properties.types || "").split('>');
+                var a = (slide.properties.arguments || "").split('>');
+                var o = slide.properties.output.split('>');
+                f.map((func, i) => {
+                    var output = document.getElementById(o[i]);
+                    if (output) output.innerHTML = ''; // clear contents
+                    var module = Module;
+                    if (!!m[i]) {
+                      module = window[m[i]];
+                    }
+                    module["print"] = printTo(output);
+                    module.ccall(
+                        func, // C function
+                        (r[i] || "") == "" ? null : r[i], // return type
+                        t[i].split(','), // argument types
+                        a[i].split(',')) // arguments
+                });
             }
         });
         slideshow.on("hideSlide", function(slide) {

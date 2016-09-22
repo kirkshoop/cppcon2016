@@ -32,6 +32,8 @@ const auto text = [](){
 
 }
 
+#if EMSCRIPTEN
+
 extern"C" void EMSCRIPTEN_KEEPALIVE intervalsv3(){
 
 using namespace std::chrono;
@@ -160,9 +162,11 @@ using rx::merge;
     lifetime.insert(l);
 }
 
+#endif
+
 #if !EMSCRIPTEN
 
-extern"C" void EMSCRIPTEN_KEEPALIVE designcontext(int first, int last){
+void designcontext(int first, int last){
 
 using namespace std::chrono;
 
